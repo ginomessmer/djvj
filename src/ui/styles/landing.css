@@ -1,0 +1,38 @@
+.landing {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 10vh 20px;
+}
+
+.landing h1 {
+  font-size: 2.6rem;
+  margin: 0 0 4px;
+}
+
+.landing__launch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 28px 0;
+}
+
+.landing .button {
+  display: block;
+  padding: 18px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.landing .button small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.landing .button--primary {
+  border-color: var(--accent);
+}
+
+.landing__steps {
+  line-height: 1.8;
+  padding-left: 1.2rem;
+}

@@ -6,20 +6,9 @@
     <title>djvj output</title>
     <link rel="icon" href="data:," />
   </head>
-  <body class="output">
-    <canvas id="stage"></canvas>
-    <div id="overlay">
-      <div class="panel">
-        <h1>djvj</h1>
-        <p id="status">Click to start audio input</p>
-        <p class="hint">
-          Drag this window to the big screen, then <kbd>F</kbd> fullscreen.<br />
-          <kbd>A</kbd> auto · <kbd>N</kbd> next scene · <kbd>C</kbd> palette · <kbd>B</kbd> blackout ·
-          <kbd>P</kbd> panic · <kbd>M</kbd> demo signal · <kbd>D</kbd> debug
-        </p>
-      </div>
-    </div>
-    <pre id="hud" hidden></pre>
-    <script type="module" src="/src/output/main.ts"></script>
+  <body>
+    <div id="stage" class="stage"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/app/output/main.tsx"></script>
   </body>
 </html>
