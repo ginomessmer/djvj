@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 1** (audio in → analysis → 3 scenes → output + control windows). Beat tracking, the energy-aware director, a logo/name overlay and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 1** (audio in → analysis → 10 scenes → output + control windows). Beat tracking, the energy-aware director, a logo/name overlay and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -23,6 +23,23 @@ For a gig, build once and serve the static files locally (no internet needed):
 ```bash
 npm run build && npm run preview
 ```
+
+## Scenes
+
+Ordered from calm to intense. The energy range is what the phase 2 director will use to pick scenes for builds, drops and breakdowns.
+
+| Scene | Look | Energy |
+| --- | --- | --- |
+| Aurora | slow curtains of light under faint stars | calm |
+| Lava | glowing blobs that merge and split | calm to mid |
+| Fluid | domain-warped noise (also the idle scene) | calm to high |
+| Rings | one ring per frequency band | low to high |
+| Grid | retro perspective floor, striped sun, mountains | mid to high |
+| Orb | raymarched sphere deformed by the bass | mid to high |
+| Kaleidoscope | folded wave pattern, kicks pulse the zoom | mid to high |
+| Tunnel | checkered tunnel, speed follows the music | mid to peak |
+| Starfield | streaks out of the centre, longer with energy | high to peak |
+| Lasers | two fans of beams, soft pulses (no strobing) | high to peak |
 
 ## Getting audio in
 

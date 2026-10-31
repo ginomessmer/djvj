@@ -65,6 +65,8 @@ A scene is a GLSL file defining `vec3 render(vec2 uv, vec2 p)`. The shared heade
 
 Resilience: a scene that fails to compile falls back to the safe scene (three's `onShaderError`), the frame loop catches errors per frame so it never dies, resolution is capped at a 1080p pixel budget, and every scene change dips through black.
 
+Scenes (calm to intense): aurora, lava, fluid, rings, grid, orb, kaleidoscope, tunnel, starfield, lasers, plus the hidden safe scene. Design rules: nothing strobes (kicks change size or soft brightness, never flash), the orb only marches rays that touch a bounding sphere, and a catalog test requires at least two scenes for every energy level so rotation always has a choice. In software GL on a CPU the heaviest were lasers, aurora and grid (about 40–60 ms at 960×540) and the lightest kaleidoscope and tunnel (frame-rate capped): this ranks them only relatively; real GPU cost is not measured.
+
 ### Controls
 
 Shortcuts are a pure function (`shortcutPatch`) used by both windows; only `F` (fullscreen) needs the output window because of the browser gesture rule. **Panic** instantly shows the ambient scene, which depends on wall-clock time only.
@@ -76,20 +78,20 @@ FLX10 MIDI (phase 4) will be **read-only** and must not map pads/jogs that rekor
 | Phase | Result | State |
 | --- | --- | --- |
 | 0 | Vite + TypeScript + Vitest scaffold, CI | done |
-| 1 | Audio in, features, 3 scenes, output + control, idle/panic/blackout | **done** |
+| 1 | Audio in, features, 10 scenes, output + control, idle/panic/blackout | **done** |
 | 2 | Beat tracker (BPM + phase), beat-synced scenes, transitions, energy-aware director (QUIET → BUILD → DROP → GROOVE → BREAKDOWN) | next |
-| 3 | More scenes (8–10), palette drift, logo/name overlay, global flash limiter, adaptive resolution | |
+| 3 | Palette drift, logo/name overlay, global flash limiter, adaptive resolution, feedback trails and particles | |
 | 4 | Passive FLX10 MIDI (EQ / filter / crossfader shape the visuals), mood presets, offline packaging, gig checklist | |
 
 ## Testing
 
-- **Unit (Vitest, 130 tests):** DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; and the architecture rules.
+- **Unit (Vitest, 148 tests):** DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; the scene catalog and shaders, and the architecture rules.
 - **End to end (headless Chromium, run manually in development):** a synthetic 128 BPM WAV is fed in as the "microphone" with Chrome's fake-audio-capture flag, and the app is driven through both windows. Covered: launcher page, audio start, signal detection, ~55 fps in software GL, scene switching, keyboard shortcuts in both windows, panic, blackout, settings surviving a reload, silent input → idle scene, demo mode, debug HUD, missing device. Screenshots are inspected by hand.
 - **Not testable without the real rig:** real input latency, CPU/GPU/thermal load next to rekordbox, the physical audio tap, and the wording of a genuine microphone _permission denial_ (the unit test covers the mapping of the error name; no browser denial was exercised). Do a 60–90 minute soak test at home before a gig.
 
 ## Open questions
 
-- Genres and BPM range (affects the tempo estimator; drum & bass needs half-time handling).
-- MacBook model and typical screen resolution (default pixel budget).
+- ~~Genres~~: techno, electronic and trance. A steady 4/4 at roughly 120–150 BPM, so the tempo estimator can use a narrow range and no half-time handling (that was the drum & bass concern). Hard techno or psytrance above ~150 BPM is the edge case to test.
+- MacBook model and typical screen resolution (default pixel budget). The user reports 60 FPS with the first three scenes; the seven added later have not been tried on the real GPU yet.
 - Logo/name assets for the optional overlay.
 - DDJ-FLX10 outputs are from memory (XLR + RCA master, TRS booth): verify in the manual which carries the master mix at the same time before buying cables.
