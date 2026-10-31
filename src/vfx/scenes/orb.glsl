@@ -2,7 +2,7 @@
 // camera. The heaviest scene: rays that miss the bounding sphere are not marched at all.
 float orbDistance(vec3 q) {
   float t = u_flow * 0.6;
-  float push = 0.05 + 0.12 * u_bands[1] + 0.05 * u_kick;
+  float push = 0.05 + 0.12 * u_bands[1] + 0.05 * u_pulse;
   float wobble = sin(q.x * 5.0 + t) * sin(q.y * 5.0 - t * 1.3) * sin(q.z * 5.0 + t * 0.7);
   return length(q) - (0.32 + 0.05 * u_energy) - push * wobble;
 }
@@ -30,7 +30,7 @@ vec3 render(vec2 uv, vec2 p) {
 
   float b = dot(ro, rd);
   float miss = sqrt(max(dot(ro, ro) - b * b, 0.0));          // distance of the ray from the centre
-  col += pal(0.1) * exp(-miss * 5.0) * (0.2 + 0.5 * u_energy + 0.3 * u_kick);   // halo
+  col += pal(0.1) * exp(-miss * 5.0) * (0.2 + 0.5 * u_energy + 0.3 * u_pulse);   // halo
 
   if (miss < BOUND) {
     float t = -b - sqrt(BOUND * BOUND - miss * miss);        // where the ray enters the bound

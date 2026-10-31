@@ -37,8 +37,9 @@ Dependencies only point downwards (`ui` sees only `domain`; `features` cannot se
 ### Data flow
 
 ```
- audio input ──▶ FeatureExtractor ──▶ OutputRuntime ──▶ Director ──▶ Stage ──▶ screen
- (service)       (domain)             (features)        (domain)     (vfx)
+ audio input ──▶ FeatureExtractor ──▶ RhythmTracker ─┐
+ (service)       (domain)          └▶ SectionTracker ─┴▶ OutputRuntime ──▶ Director ──▶ Stage ──▶ screen
+                                       (domain)            (features)        (domain)     (vfx)
                                           │  ▲
                               snapshots   │  │  validated patches
                                           ▼  │
@@ -57,7 +58,21 @@ Dependencies only point downwards (`ui` sees only `domain`; `features` cannot se
 - `SignalGate`: on after 0.4 s of signal, off after 3 s of silence, with hysteresis. Drives the idle fallback.
 - Browser voice processing is disabled; input is analysed only, never played back.
 
-**Known limitation:** `kick` is a _low-end onset_, not a kick detector. Measured with a synthetic 128 BPM track: kick only gives 21 hits per 10 s (21.3 beats, exact); kick plus a 55 Hz off-beat bass stab gives 43 (2×). Fine for pulses, but a phase-2 beat tracker must derive tempo from onsets with autocorrelation and not count them as beats.
+**Note:** `kick` (and `u_kick`) is a _low-end onset_, not a kick detector. Measured with a synthetic 128 BPM track: kick only gives 21 hits per 10 s (21.3 beats, exact); kick plus a 55 Hz off-beat bass stab gives 43 (2×). The beat tracker handles this with the range-limited autocorrelation and the punch-weighted beat grid described below; scenes use the beat-locked `u_pulse`.
+
+### Rhythm and structure (`domain/rhythm`)
+
+Built and tuned against a structured test song (groove, breakdown with snare roll and riser, drop) played through the real browser audio path. The measurements that shaped it:
+
+- **Tempo, two stages.** Autocorrelation of the kick-band onset strength over 8 s (range 115–160 BPM, which also rules out reading a kick plus an off-beat bass as double tempo) is robust but coarse: measured up to ±0.9 BPM, because onsets come at frame rate. The beat clock then **fits the period by least squares** to the kick onsets of the last 10 s: ±0.1 BPM in tests with frame jitter and off-beat bass. A coarse estimate more than 3% away means a new tempo and resets the fit.
+- **Beat grid.** Onsets are folded onto the grid; the strongest cluster is the beat. Through the real pipeline, kick and off-beat bass had **equal** low-end flux, and the grid flipped between them (beat hits every ~0.26 s). What separates them is the jump in overall loudness, `punch`: kick +14.5 dB, bass +8.3 dB. The grid weighs onsets by punch and only moves to another cluster when it is 1.25× stronger (hysteresis). Result: 38 beats in 18 s (expected 38), all gaps 0.466–0.483 s, beats on the kick.
+- **Kick band 40–100 Hz.** The 60–250 Hz band did not change between groove and breakdown (a pad chord at 220 Hz sits there), and the sub band below 60 Hz is out of reach of a laptop microphone. 40–100 Hz holds kick and bassline and excludes most pads.
+- **Sections.** Bass presence is the kick band relative to the overall loudness (so the DJ changing the volume is not a breakdown), with fast attack (drop recognised in under 0.25 s) and slow release (bass must be gone 2 s). Highs for the build are averaged in power over 1.5 s: averaged in dB, off-beat hats faked a rise. Measured timeline of the test song: breakdown at 32.2 s (bass left at 30 s, plus the 2 s hold), build at 38.0 s (roll from 37.5 s), drop at 45.4 s (bass back at 45 s), groove 16 beats later.
+- **Pulse.** `u_pulse` is the beat grid's pulse when it is trusted and blends to the raw kick when it is not, never jumping. A beat offset (±150 ms, persisted) compensates latency.
+
+### Director (`domain/show/director.ts`)
+
+Section energy picks the scene (breakdown 0.25, build 0.6, drop 0.95, groove follows the music's energy), avoiding the last three scenes. When: a groove changes every 64 beats; a breakdown or build changes on the next beat, but not within 8 beats of the last change; the drop cuts at once. Without a beat lock it falls back to a 45 s timer. Picking a scene by hand locks it.
 
 ### Rendering (`vfx`)
 
@@ -79,18 +94,20 @@ FLX10 MIDI (phase 4) will be **read-only** and must not map pads/jogs that rekor
 | --- | --- | --- |
 | 0 | Vite + TypeScript + Vitest scaffold, CI | done |
 | 1 | Audio in, features, 10 scenes, output + control, idle/panic/blackout | **done** |
-| 2 | Beat tracker (BPM + phase), beat-synced scenes, transitions, energy-aware director (QUIET → BUILD → DROP → GROOVE → BREAKDOWN) | next |
-| 3 | Palette drift, logo/name overlay, global flash limiter, adaptive resolution, feedback trails and particles | |
+| 2 | Beat tracker (BPM + phase), beat-synced scenes, section tracking (groove, breakdown, build, drop), director that follows them, beat offset | **done** |
+| 3 | Palette drift, logo/name overlay, global flash limiter, adaptive resolution, crossfade transitions, feedback trails and particles, tap tempo fallback | next |
 | 4 | Passive FLX10 MIDI (EQ / filter / crossfader shape the visuals), mood presets, offline packaging, gig checklist | |
 
 ## Testing
 
-- **Unit (Vitest, 148 tests):** DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; the scene catalog and shaders, and the architecture rules.
+- **Unit (Vitest, 204 tests):** tempo (±0.1 BPM at 120–150 with frame jitter and off-beat bass, tempo changes, silence, random onsets), beat grid (on the kick, not the off-beat bass, no flip-flopping, relock after a phase shift, latency offset), sections (build/drop sequence, drop within 0.25 s, short gaps, volume changes, hats are not a build), director (phrases on the beat, drop cut, calm breakdowns, spacing, fallback timer, no repeats), and DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; the scene catalog and shaders, and the architecture rules.
+- **End to end, rhythm (headless Chromium):** a generated 75 s song played through the browser microphone path. Tempo 128.0 in the groove, sections and scene choices on time (see above). The BPM read 127.6–128.0 between runs; the audio as delivered by Chrome's fake device in this VM measured 127.8–128.0, so part of that is the test environment. Real audio hardware is clocked, so the rig should do better, but that is not verified.
 - **End to end (headless Chromium, run manually in development):** a synthetic 128 BPM WAV is fed in as the "microphone" with Chrome's fake-audio-capture flag, and the app is driven through both windows. Covered: launcher page, audio start, signal detection, ~55 fps in software GL, scene switching, keyboard shortcuts in both windows, panic, blackout, settings surviving a reload, silent input → idle scene, demo mode, debug HUD, missing device. Screenshots are inspected by hand.
 - **Not testable without the real rig:** real input latency, CPU/GPU/thermal load next to rekordbox, the physical audio tap, and the wording of a genuine microphone _permission denial_ (the unit test covers the mapping of the error name; no browser denial was exercised). Do a 60–90 minute soak test at home before a gig.
 
 ## Open questions
 
+- **Microphone bass response.** The kick band is 40–100 Hz; a laptop mic rolls off around there. The first thing to check on the rig: does the Rhythm card lock (BPM, beat light, sections) with the mic? If not, use line-in or BlackHole.
 - ~~Genres~~: techno, electronic and trance. A steady 4/4 at roughly 120–150 BPM, so the tempo estimator can use a narrow range and no half-time handling (that was the drum & bass concern). Hard techno or psytrance above ~150 BPM is the edge case to test.
 - MacBook model and typical screen resolution (default pixel budget). The user reports 60 FPS with the first three scenes; the seven added later have not been tried on the real GPU yet.
 - Logo/name assets for the optional overlay.

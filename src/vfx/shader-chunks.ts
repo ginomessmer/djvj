@@ -19,8 +19,10 @@ uniform float u_time;       // wall-clock seconds
 uniform float u_flow;       // travel distance: time integrated with audio energy, always smooth
 uniform float u_bands[5];   // sub, bass, mid, high-mid, high   (0..1, smoothed)
 uniform float u_energy;     // overall energy (0..1, slow)
-uniform float u_kick;       // 1 on a low-end onset, decays in ~150 ms
+uniform float u_kick;       // raw: 1 on a low-end onset, decays in ~150 ms (off-beat bass too)
 uniform float u_onset;      // same for percussive onsets
+uniform float u_beat;       // 0..1 position in the beat, 0 = on the beat
+uniform float u_pulse;      // beat-locked: 1 on every beat, ~120 ms decay; u_kick without a lock
 uniform vec3  u_palette[4];
 uniform float u_intensity;  // master brightness * fades
 

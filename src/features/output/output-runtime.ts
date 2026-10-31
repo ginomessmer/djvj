@@ -1,8 +1,10 @@
 import { type AudioFeatures, silentFeatures } from '@/domain/audio/audio-features';
 import { demoFeatures } from '@/domain/audio/demo-features';
 import { idleFeatures } from '@/domain/audio/idle-features';
-import { clamp } from '@/domain/math';
+import { clamp, smoothstep } from '@/domain/math';
 import type { ShowSnapshot } from '@/domain/remote/protocol';
+import { type RhythmState, RhythmTracker } from '@/domain/rhythm/rhythm-tracker';
+import { type Section, SectionTracker } from '@/domain/rhythm/section-tracker';
 import type { Director } from '@/domain/show/director';
 import { findPalette } from '@/domain/show/palettes';
 import type { SceneId } from '@/domain/show/scenes';
@@ -23,18 +25,34 @@ const BLACKOUT_EASING_PER_SEC = 12;
 /** How fast scene travel speeds up with energy. */
 const FLOW_BASE_SPEED = 0.2;
 const FLOW_ENERGY_SPEED = 1.8;
+/** From this confidence on, the beat grid drives scene changes. */
+const BEAT_LOCK_CONFIDENCE = 0.5;
+/** Between these confidences the visual pulse blends from the raw kick to the beat grid. */
+const PULSE_BLEND = { from: 0.3, to: 0.6 };
+
+const NO_RHYTHM: RhythmState = {
+  bpm: 0,
+  confidence: 0,
+  beatPhase: 0,
+  beatHit: false,
+  beatPulse: 0,
+};
 
 type SnapshotListener = (snapshot: ShowSnapshot) => void;
 
 /**
- * The show loop of the output window: each frame it senses audio, lets the director pick the
- * scene and draws it. It publishes snapshots (~10 Hz and on every change) for the UI and for the
+ * The show loop of the output window: each frame it senses audio, follows the rhythm and the
+ * structure of the music, lets the director pick the scene and draws it. It publishes snapshots (~10 Hz and on every change) for the UI and for the
  * control window.
  */
 export class OutputRuntime {
   private readonly listeners = new Set<SnapshotListener>();
   private readonly stats = new FrameStats();
+  private readonly rhythmTracker = new RhythmTracker();
+  private readonly sectionTracker = new SectionTracker();
   private features: AudioFeatures = silentFeatures();
+  private rhythm: RhythmState = NO_RHYTHM;
+  private section: Section = 'quiet';
   private shownSceneId: SceneId;
   private resolution: [number, number] = [0, 0];
   private flow = 0;
@@ -106,6 +124,12 @@ export class OutputRuntime {
         kick: features.kick,
         loudnessDb: features.loudnessDb,
       },
+      rhythm: {
+        bpm: this.rhythm.bpm,
+        confidence: this.rhythm.confidence,
+        beatPhase: this.rhythm.beatPhase,
+        section: this.section,
+      },
       shownSceneId: this.shownSceneId,
       performance: {
         fps: this.stats.fps,
@@ -113,6 +137,11 @@ export class OutputRuntime {
         resolution: this.resolution,
       },
     };
+  }
+
+  /** Internals of the last frame, for diagnosing on the real rig (exposed in dev builds only). */
+  inspect(): { features: AudioFeatures; rhythm: RhythmState; section: Section } {
+    return { features: this.features, rhythm: this.rhythm, section: this.section };
   }
 
   /** One frame. `start()` drives it from `requestAnimationFrame`; tests call it directly. */
@@ -125,14 +154,18 @@ export class OutputRuntime {
     const show = store.getState();
     this.features = this.senseAudio(show.demo, tSec);
     const live = this.features.signal;
+    this.followMusic(tSec, dtSec, show.beatOffsetMs / 1000);
     const view = live ? this.features : idleFeatures(tSec);
     this.flow += dtSec * (FLOW_BASE_SPEED + FLOW_ENERGY_SPEED * view.energy);
 
-    const frame = director.update(tSec, dtSec, {
+    const frame = director.update(dtSec, {
       auto: show.auto,
       panic: show.panic,
       selectedId: show.sceneId,
       live,
+      section: this.section,
+      energy: view.energy,
+      beat: { hit: this.rhythm.beatHit, locked: this.rhythm.confidence >= BEAT_LOCK_CONFIDENCE },
     });
     if (frame.selectedId !== show.sceneId) show.apply({ sceneId: frame.selectedId });
     this.shownSceneId = frame.shownId;
@@ -146,6 +179,7 @@ export class OutputRuntime {
       time: tSec,
       flow: this.flow,
       features: view,
+      rhythm: { beatPhase: this.rhythm.beatPhase, pulse: live ? this.pulse(view.kick) : 0 },
       palette: findPalette(show.paletteId),
       intensity: show.intensity * frame.brightness * this.blackoutLevel,
     });
@@ -154,6 +188,24 @@ export class OutputRuntime {
       this.lastSnapshotSec = tSec;
       this.publish();
     }
+  }
+
+  private followMusic(tSec: number, dtSec: number, beatOffsetSec: number): void {
+    const { features } = this;
+    this.rhythm = this.rhythmTracker.update(tSec, features, beatOffsetSec);
+    this.section = this.sectionTracker.update(dtSec, {
+      signal: features.signal,
+      lowDb: features.lowEndDb,
+      highDb: Math.max(features.bandsDb[3], features.bandsDb[4]),
+      loudnessDb: features.loudnessDb,
+      beatHit: this.rhythm.beatHit,
+    });
+  }
+
+  /** The beat grid's pulse once it is trusted, the raw kick before that; blended, never a jump. */
+  private pulse(kick: number): number {
+    const trust = smoothstep(PULSE_BLEND.from, PULSE_BLEND.to, this.rhythm.confidence);
+    return kick + (this.rhythm.beatPulse - kick) * trust;
   }
 
   private senseAudio(demo: boolean, tSec: number): AudioFeatures {

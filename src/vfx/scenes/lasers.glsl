@@ -22,7 +22,7 @@ vec3 fan(vec2 origin, float direction, vec2 p, float phase) {
 vec3 render(vec2 uv, vec2 p) {
   vec3 col = fan(vec2(0.0, -0.62), 1.0, p, 0.0) + fan(vec2(0.0, 0.62), -1.0, p, 2.1);
   col *= 0.6 + 0.4 * vnoise(p * 3.0 + vec2(0.0, u_flow * 0.25));    // drifting smoke
-  col *= (0.9 + 0.5 * u_energy) * (0.88 + 0.12 * u_kick);
+  col *= (0.9 + 0.5 * u_energy) * (0.88 + 0.12 * u_pulse);
   col += pal(0.78) * 0.04;
   return col;
 }
