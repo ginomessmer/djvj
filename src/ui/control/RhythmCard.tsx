@@ -21,17 +21,20 @@ interface RhythmCardProps {
   rhythm: ShowSnapshot['rhythm'];
   show: ShowState;
   onPatch: (patch: ShowPatch) => void;
+  onTap: () => void;
+  onClearTap: () => void;
 }
 
-export function RhythmCard({ rhythm, show, onPatch }: RhythmCardProps) {
+export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmCardProps) {
   const known = rhythm.bpm > 0 && rhythm.confidence >= SHOW_BPM_FROM;
+  const tapped = rhythm.source === 'tap';
 
   return (
     <Card title="Rhythm">
       <div class="row">
         <span class="bpm">
           {known ? rhythm.bpm.toFixed(1) : '–––'}
-          <small> BPM</small>
+          <small> BPM{tapped && ' · tapped'}</small>
         </span>
         <Led on={known && rhythm.beatPhase < 0.25} label="beat" />
         <span class={`section-tag section-tag--${rhythm.section}`}>
@@ -39,6 +42,19 @@ export function RhythmCard({ rhythm, show, onPatch }: RhythmCardProps) {
         </span>
       </div>
       <Meter label="lock" value={rhythm.confidence} />
+      <div class="row">
+        <button type="button" class="tap" onPointerDown={onTap}>
+          Tap (T)
+        </button>
+        {tapped && (
+          <button type="button" onClick={onClearTap}>
+            Back to auto
+          </button>
+        )}
+      </div>
+      <p class="muted">
+        Not locking? Tap four times on the kick: the tapped tempo stays until you go back to auto.
+      </p>
       <Slider
         label="Beat offset"
         value={show.beatOffsetMs}

@@ -10,7 +10,7 @@ type Conditions = Partial<Omit<DirectorInput, 'beat' | 'selectedId'>> & { locked
 /** Drives a director at 60 fps with a 128 BPM beat, feeding the selection back like the runtime. */
 class Show {
   readonly director: Director;
-  readonly changes: Array<{ tSec: number; to: SceneId; brightness: number }> = [];
+  readonly changes: Array<{ tSec: number; to: SceneId; frame: DirectorFrame }> = [];
   selectedId: SceneId = 'tunnel';
   last!: DirectorFrame;
   t = 0;
@@ -33,14 +33,10 @@ class Show {
         energy: 0.7,
         ...rest,
         selectedId: this.selectedId,
-        beat: { hit: locked && hit, locked },
+        beat: { hit: locked && hit, locked, periodSec: BEAT_SEC },
       });
       if (this.last.selectedId !== this.selectedId) {
-        this.changes.push({
-          tSec: this.t,
-          to: this.last.selectedId,
-          brightness: this.last.brightness,
-        });
+        this.changes.push({ tSec: this.t, to: this.last.selectedId, frame: this.last });
         this.selectedId = this.last.selectedId;
       }
     }
@@ -56,26 +52,38 @@ const suits = (id: SceneId, energy: number) => {
 
 describe('Director', () => {
   it('shows the selected scene at full brightness', () => {
-    expect(new Show().run(1)).toMatchObject({ shownId: 'tunnel', brightness: 1 });
+    expect(new Show().run(1)).toMatchObject({
+      fromId: 'tunnel',
+      toId: 'tunnel',
+      mix: 1,
+      brightness: 1,
+    });
   });
 
-  it('panic shows the safe scene immediately at full brightness', () => {
+  it('panic cuts to the safe scene', () => {
     const show = new Show();
     show.run(1);
-    expect(show.run(STEP, { panic: true })).toMatchObject({ shownId: 'ambient', brightness: 1 });
+    expect(show.run(STEP, { panic: true })).toMatchObject({ toId: 'ambient', mix: 1 });
   });
 
-  it('falls back to the idle scene on silence, but only in auto mode', () => {
-    expect(new Show().run(2, { live: false }).shownId).toBe('fluid');
-    expect(new Show().run(2, { live: false, auto: false }).shownId).toBe('tunnel');
+  it('crossfades to the idle scene on silence, but only in auto mode', () => {
+    expect(new Show().run(3, { live: false }).toId).toBe('fluid');
+    expect(new Show().run(3, { live: false, auto: false }).toId).toBe('tunnel');
   });
 
-  it('changes scene every 64 beats in a groove, on the beat', () => {
+  it('changes scene every 64 beats in a groove, on the beat, crossfading over a bar', () => {
     const show = new Show();
     show.run(64 * BEAT_SEC * 2.5);
     expect(show.changes).toHaveLength(2);
     expect(show.changes[0].tSec).toBeGreaterThanOrEqual(64 * BEAT_SEC - STEP);
-    for (const change of show.changes) expect(onBeat(change.tSec)).toBe(true);
+    for (const { tSec, frame } of show.changes) {
+      expect(onBeat(tSec)).toBe(true);
+      expect(frame.change).toBe('phrase');
+      expect(frame.mix).toBeLessThan(0.1); // the crossfade has only just begun
+    }
+    const halfBar = new Show();
+    halfBar.run(64 * BEAT_SEC);
+    expect(halfBar.run(2 * BEAT_SEC).mix).toBeGreaterThan(0.3); // two beats into a four-beat fade
   });
 
   it('falls back to a timer without a beat grid', () => {
@@ -88,11 +96,10 @@ describe('Director', () => {
   it('cuts to a peak scene the moment the drop hits', () => {
     const show = new Show();
     show.run(10, { section: 'build' });
-    const changesBefore = show.changes.length;
     show.run(STEP, { section: 'drop' });
-    expect(show.changes).toHaveLength(changesBefore + 1);
     const drop = show.changes.at(-1);
-    expect(drop?.brightness).toBe(1); // a hard cut, no dip to black
+    expect(drop?.frame).toMatchObject({ change: 'drop', mix: 1, brightness: 1 });
+    expect(drop?.frame.fromId).toBe(drop?.frame.toId); // nothing of the old scene left
     expect(suits(drop?.to as SceneId, 0.95)).toBe(true);
   });
 
@@ -101,6 +108,7 @@ describe('Director', () => {
     show.run(10);
     show.run(BEAT_SEC * 1.2, { section: 'breakdown' });
     const breakdown = show.changes.at(-1);
+    expect(breakdown?.frame.change).toBe('section');
     expect(breakdown && onBeat(breakdown.tSec)).toBe(true);
     expect(suits(breakdown?.to as SceneId, 0.25)).toBe(true);
   });
@@ -108,10 +116,10 @@ describe('Director', () => {
   it('waits a few beats before following a section change that comes right after a change', () => {
     const show = new Show();
     show.run(10, { section: 'build' });
-    show.run(2 * BEAT_SEC, { section: 'drop' }); // cut
+    show.run(2 * BEAT_SEC, { section: 'drop' });
     const afterDrop = show.changes.length;
     show.run(4 * BEAT_SEC, { section: 'breakdown' });
-    expect(show.changes).toHaveLength(afterDrop); // too soon
+    expect(show.changes).toHaveLength(afterDrop);
     show.run(4 * BEAT_SEC, { section: 'breakdown' });
     expect(show.changes).toHaveLength(afterDrop + 1);
   });

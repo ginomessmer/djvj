@@ -2,12 +2,17 @@ import { type AudioFeatures, silentFeatures } from '@/domain/audio/audio-feature
 import { demoFeatures } from '@/domain/audio/demo-features';
 import { idleFeatures } from '@/domain/audio/idle-features';
 import { clamp, smoothstep } from '@/domain/math';
-import type { ShowSnapshot } from '@/domain/remote/protocol';
+import { ResolutionGovernor } from '@/domain/performance/resolution-governor';
+import { MAX_LOGO_DATA_URL_LENGTH, type ShowSnapshot } from '@/domain/remote/protocol';
 import { type RhythmState, RhythmTracker } from '@/domain/rhythm/rhythm-tracker';
 import { type Section, SectionTracker } from '@/domain/rhythm/section-tracker';
-import type { Director } from '@/domain/show/director';
-import { findPalette } from '@/domain/show/palettes';
+import { FlashGuard } from '@/domain/safety/flash-guard';
+import type { Director, DirectorFrame } from '@/domain/show/director';
+import { type OverlayFrame, OverlayScheduler } from '@/domain/show/overlay-scheduler';
+import { PaletteRotation } from '@/domain/show/palette-rotation';
+import { findPalette, nextPalette } from '@/domain/show/palettes';
 import type { SceneId } from '@/domain/show/scenes';
+import type { LogoStorage } from '@/services/logo-storage';
 import type { Stage } from '@/vfx/stage';
 import type { AudioPipeline } from '../audio/audio-pipeline';
 import { type ShowStoreApi, toShowState } from '../show/show-store';
@@ -18,6 +23,7 @@ export interface OutputRuntimeDeps {
   store: ShowStoreApi;
   audio: AudioPipeline;
   director: Director;
+  logoStorage: LogoStorage;
 }
 
 const SNAPSHOT_INTERVAL_SEC = 0.1;
@@ -29,6 +35,10 @@ const FLOW_ENERGY_SPEED = 1.8;
 const BEAT_LOCK_CONFIDENCE = 0.5;
 /** Between these confidences the visual pulse blends from the raw kick to the beat grid. */
 const PULSE_BLEND = { from: 0.3, to: 0.6 };
+/** Assumed beat length while there is no tempo yet. */
+const FALLBACK_BEAT_SEC = 60 / 128;
+/** While the flash guard is fully on: pulses lose this share, the image this much brightness. */
+const FLASH_GUARD = { pulseDamping: 0.85, dimming: 0.25 };
 
 const NO_RHYTHM: RhythmState = {
   bpm: 0,
@@ -36,33 +46,44 @@ const NO_RHYTHM: RhythmState = {
   beatPhase: 0,
   beatHit: false,
   beatPulse: 0,
+  source: 'auto',
 };
 
 type SnapshotListener = (snapshot: ShowSnapshot) => void;
 
 /**
- * The show loop of the output window: each frame it senses audio, follows the rhythm and the
- * structure of the music, lets the director pick the scene and draws it. It publishes snapshots (~10 Hz and on every change) for the UI and for the
- * control window.
+ * The show loop of the output window. Each frame it senses audio, follows the rhythm and the
+ * structure of the music, lets the director pick the scenes, keeps the output safe (flash guard)
+ * and light enough for the GPU (adaptive resolution), and draws. It publishes snapshots (~10 Hz
+ * and on every change) for the UI and the control window.
  */
 export class OutputRuntime {
   private readonly listeners = new Set<SnapshotListener>();
   private readonly stats = new FrameStats();
   private readonly rhythmTracker = new RhythmTracker();
   private readonly sectionTracker = new SectionTracker();
+  private readonly paletteRotation = new PaletteRotation();
+  private readonly overlayScheduler = new OverlayScheduler();
+  private readonly flashGuard = new FlashGuard();
+  private readonly governor = new ResolutionGovernor();
   private features: AudioFeatures = silentFeatures();
   private rhythm: RhythmState = NO_RHYTHM;
   private section: Section = 'quiet';
   private shownSceneId: SceneId;
+  private overlay: OverlayFrame = { opacity: 0, layout: 'corner' };
+  private logoUrl: string;
+  private calm = 0;
   private resolution: [number, number] = [0, 0];
   private flow = 0;
   private blackoutLevel = 1;
   private lastFrameSec = 0;
   private lastSnapshotSec = 0;
+  private lastLuminanceSec = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: OutputRuntimeDeps) {
     const { store, audio } = deps;
     this.shownSceneId = store.getState().sceneId;
+    this.logoUrl = deps.logoStorage.load();
 
     audio.onChange = () => this.publish();
     store.subscribe(() => this.publish());
@@ -99,6 +120,31 @@ export class OutputRuntime {
     return this.deps.audio.refreshDevices();
   }
 
+  /** A tap on the beat; timed now, on the same clock as the frames. */
+  tap(tSec = performance.now() / 1000): void {
+    this.rhythmTracker.tap(tSec);
+    this.publish();
+  }
+
+  clearTap(): void {
+    this.rhythmTracker.clearTap();
+    this.publish();
+  }
+
+  /** Sets (or with '' removes) the overlay logo. Anything that is not a sane image is ignored. */
+  setLogo(dataUrl: string): void {
+    const valid =
+      dataUrl === '' ||
+      (dataUrl.startsWith('data:image/') && dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH);
+    if (!valid) {
+      console.warn('[djvj] ignored an invalid logo');
+      return;
+    }
+    this.logoUrl = dataUrl;
+    this.deps.logoStorage.save(dataUrl);
+    this.publish();
+  }
+
   subscribe(listener: SnapshotListener): () => void {
     this.listeners.add(listener);
     return () => {
@@ -108,7 +154,7 @@ export class OutputRuntime {
 
   getSnapshot(): ShowSnapshot {
     const { audio, store } = this.deps;
-    const { features } = this;
+    const { features, rhythm } = this;
     return {
       show: toShowState(store.getState()),
       audio: {
@@ -125,11 +171,14 @@ export class OutputRuntime {
         loudnessDb: features.loudnessDb,
       },
       rhythm: {
-        bpm: this.rhythm.bpm,
-        confidence: this.rhythm.confidence,
-        beatPhase: this.rhythm.beatPhase,
+        bpm: rhythm.bpm,
+        confidence: rhythm.confidence,
+        beatPhase: rhythm.beatPhase,
         section: this.section,
+        source: rhythm.source,
       },
+      safety: { flashGuard: this.calm, resolutionScale: this.governor.scale },
+      overlay: { hasLogo: this.logoUrl !== '', opacity: this.overlay.opacity },
       shownSceneId: this.shownSceneId,
       performance: {
         fps: this.stats.fps,
@@ -140,8 +189,13 @@ export class OutputRuntime {
   }
 
   /** Internals of the last frame, for diagnosing on the real rig (exposed in dev builds only). */
-  inspect(): { features: AudioFeatures; rhythm: RhythmState; section: Section } {
-    return { features: this.features, rhythm: this.rhythm, section: this.section };
+  inspect() {
+    return {
+      features: this.features,
+      rhythm: this.rhythm,
+      section: this.section,
+      luminance: this.deps.stage.luminance(),
+    };
   }
 
   /** One frame. `start()` drives it from `requestAnimationFrame`; tests call it directly. */
@@ -165,24 +219,51 @@ export class OutputRuntime {
       live,
       section: this.section,
       energy: view.energy,
-      beat: { hit: this.rhythm.beatHit, locked: this.rhythm.confidence >= BEAT_LOCK_CONFIDENCE },
+      beat: {
+        hit: this.rhythm.beatHit,
+        locked: this.rhythm.confidence >= BEAT_LOCK_CONFIDENCE,
+        periodSec: this.rhythm.bpm > 0 ? 60 / this.rhythm.bpm : FALLBACK_BEAT_SEC,
+      },
     });
-    if (frame.selectedId !== show.sceneId) show.apply({ sceneId: frame.selectedId });
-    this.shownSceneId = frame.shownId;
+    this.followDirector(frame);
 
+    this.calm = this.watchForFlashes(tSec);
     const blackoutTarget = show.blackout ? 0 : 1;
     this.blackoutLevel +=
       (blackoutTarget - this.blackoutLevel) * Math.min(1, dtSec * BLACKOUT_EASING_PER_SEC);
+    const pulse = live ? this.pulse(view.kick) * (1 - FLASH_GUARD.pulseDamping * this.calm) : 0;
 
-    this.resolution = stage.resize(show.renderScale);
-    stage.render(frame.shownId, {
-      time: tSec,
-      flow: this.flow,
-      features: view,
-      rhythm: { beatPhase: this.rhythm.beatPhase, pulse: live ? this.pulse(view.kick) : 0 },
-      palette: findPalette(show.paletteId),
-      intensity: show.intensity * frame.brightness * this.blackoutLevel,
+    this.overlay = this.overlayScheduler.update(dtSec, {
+      mode: show.overlayMode,
+      hasContent: show.overlayName.trim() !== '' || this.logoUrl !== '',
+      live,
+      section: this.section,
+      beatHit: this.rhythm.beatHit,
     });
+
+    const resolutionScale = this.governor.update(dtSec, show.adaptiveResolution);
+    this.resolution = stage.resize(show.renderScale, resolutionScale);
+    stage.render(
+      frame,
+      {
+        time: tSec,
+        flow: this.flow,
+        features: view,
+        rhythm: { beatPhase: this.rhythm.beatPhase, pulse },
+        palette: findPalette(store.getState().paletteId),
+        intensity:
+          show.intensity *
+          frame.brightness *
+          this.blackoutLevel *
+          (1 - FLASH_GUARD.dimming * this.calm),
+      },
+      {
+        name: show.overlayName,
+        logoUrl: this.logoUrl,
+        opacity: this.overlay.opacity,
+        layout: this.overlay.layout,
+      },
+    );
 
     if (tSec - this.lastSnapshotSec >= SNAPSHOT_INTERVAL_SEC) {
       this.lastSnapshotSec = tSec;
@@ -200,6 +281,27 @@ export class OutputRuntime {
       loudnessDb: features.loudnessDb,
       beatHit: this.rhythm.beatHit,
     });
+  }
+
+  /** Writes the director's choices back: the selected scene, and a new palette when it is time. */
+  private followDirector(frame: DirectorFrame): void {
+    const { store } = this.deps;
+    const show = store.getState();
+    if (frame.selectedId !== show.sceneId) show.apply({ sceneId: frame.selectedId });
+    if (frame.change && show.autoPalette && this.paletteRotation.onSceneChange(frame.change)) {
+      show.apply({ paletteId: nextPalette(show.paletteId).id });
+    }
+    this.shownSceneId = frame.mix >= 0.5 ? frame.toId : frame.fromId;
+  }
+
+  /** Feeds new brightness measurements to the flash guard; returns how hard to damp. */
+  private watchForFlashes(tSec: number): number {
+    const measured = this.deps.stage.luminance();
+    if (measured && measured.tSec > this.lastLuminanceSec) {
+      this.lastLuminanceSec = measured.tSec;
+      this.flashGuard.observe(measured.tSec, measured.value);
+    }
+    return this.flashGuard.calm(tSec);
   }
 
   /** The beat grid's pulse once it is trusted, the raw kick before that; blended, never a jump. */

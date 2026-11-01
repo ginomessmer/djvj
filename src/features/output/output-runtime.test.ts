@@ -3,10 +3,10 @@ import { createTestRuntime, runFrames } from '../test-utils';
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** Arguments of the most recent `stage.render` call. */
+/** Arguments of the most recent `stage.render` call: the scene mix, frame and overlay. */
 function lastDraw(stage: { render: ReturnType<typeof vi.fn> }) {
-  const [sceneId, frame] = stage.render.mock.calls.at(-1) ?? [];
-  return { sceneId, frame };
+  const [mix, frame, overlay] = stage.render.mock.calls.at(-1) ?? [];
+  return { sceneId: mix?.toId, mix, frame, overlay };
 }
 
 describe('OutputRuntime', () => {
@@ -80,6 +80,96 @@ describe('OutputRuntime', () => {
     expect(runtime.getSnapshot().rhythm.section).toBe('drop');
     expect(['tunnel', 'starfield', 'lasers']).toContain(sceneId);
     expect(frame.intensity).toBeGreaterThan(0.9); // a cut, not a fade
+  });
+
+  it('crossfades between two scenes when the director moves on', () => {
+    const { runtime, store, stage } = createTestRuntime({ phraseBeats: 8, rng: () => 0.5 });
+    store.getState().apply({ demo: true });
+    runFrames(runtime, 20);
+    const blends = stage.render.mock.calls.filter(([mix]) => mix.mix > 0.2 && mix.mix < 0.8);
+    expect(blends.length).toBeGreaterThan(0);
+    expect(blends.every(([mix]) => mix.fromId !== mix.toId)).toBe(true);
+  });
+
+  it('brings a new palette on the drop in auto palette mode, and keeps a locked one', () => {
+    for (const autoPalette of [true, false]) {
+      const { runtime, store } = createTestRuntime();
+      store.getState().apply({ demo: true, autoPalette, paletteId: 'synthwave' });
+      runFrames(runtime, 58.5); // from 1 s to 59.5 s: the demo drops at 60 s
+      const before = store.getState().paletteId;
+      runFrames(runtime, 1, 59.5);
+      const changed = store.getState().paletteId !== before;
+      expect(changed).toBe(autoPalette);
+    }
+  });
+
+  it('damps the pulse and dims a little when the output flashes', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({ demo: true });
+    runFrames(runtime, 10);
+    const calmPulse = Math.max(
+      ...stage.render.mock.calls.slice(-60).map(([, frame]) => frame.rhythm.pulse),
+    );
+
+    let frame = 0;
+    stage.luminance.mockImplementation(() => ({
+      tSec: 11 + frame / 60,
+      value: frame++ % 8 < 4 ? 0.1 : 0.6,
+    }));
+    runFrames(runtime, 2, 11);
+    const guarded = stage.render.mock.calls.slice(-60).map(([, frameParams]) => frameParams);
+    expect(runtime.getSnapshot().safety.flashGuard).toBe(1);
+    expect(Math.max(...guarded.map((f) => f.rhythm.pulse))).toBeLessThan(0.2 * calmPulse);
+    expect(guarded.at(-1)?.intensity).toBeLessThan(0.8);
+  });
+
+  it('lowers the resolution when frames get slow, unless switched off', () => {
+    for (const adaptiveResolution of [true, false]) {
+      const { runtime, store, stage } = createTestRuntime();
+      store.getState().apply({ adaptiveResolution });
+      for (let t = 1; t < 6; t += 1 / 30) runtime.renderFrame(t); // 30 fps
+      const quality = stage.resize.mock.calls.at(-1)?.[1];
+      if (adaptiveResolution) expect(quality).toBeLessThan(0.7);
+      else expect(quality).toBe(1);
+    }
+  });
+
+  it('shows the overlay when there is something to show', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({ overlayMode: 'corner' });
+    runFrames(runtime, 3);
+    expect(lastDraw(stage).overlay.opacity).toBe(0); // no name, no logo
+
+    store.getState().apply({ overlayName: 'DJ Test' });
+    runFrames(runtime, 3, 4);
+    expect(lastDraw(stage).overlay).toMatchObject({ name: 'DJ Test', layout: 'corner' });
+    expect(lastDraw(stage).overlay.opacity).toBeGreaterThan(0.5);
+  });
+
+  it('stores a valid logo, keeps it out of the snapshot and ignores anything else', () => {
+    const { runtime, logos } = createTestRuntime();
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    runtime.setLogo(png);
+    runtime.setLogo('javascript:alert(1)');
+    runtime.setLogo(`data:image/png;base64,${'A'.repeat(3_000_001)}`);
+    expect(logos).toEqual([png]);
+    const snapshot = runtime.getSnapshot();
+    expect(snapshot.overlay.hasLogo).toBe(true);
+    expect(JSON.stringify(snapshot)).not.toContain('iVBORw0KGgo');
+  });
+
+  it('takes a tapped tempo', () => {
+    const { runtime } = createTestRuntime();
+    runFrames(runtime, 1);
+    for (let i = 0; i < 4; i++) runtime.tap(2 + i * (60 / 140));
+    runFrames(runtime, 2, 4);
+    const { rhythm } = runtime.getSnapshot();
+    expect(rhythm.source).toBe('tap');
+    expect(Math.abs(rhythm.bpm - 140)).toBeLessThan(0.5);
+    runtime.clearTap();
+    expect(runtime.getSnapshot().rhythm.source).toBe('tap'); // until the next frame
+    runFrames(runtime, 0.1, 6);
+    expect(runtime.getSnapshot().rhythm.source).toBe('auto');
   });
 
   it('publishes snapshots that can be sent to another window', () => {

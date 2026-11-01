@@ -1,6 +1,7 @@
 import type { AudioFeatures } from '../audio/audio-features';
 import { fract } from '../math';
 import { BeatClock } from './beat-clock';
+import { TapTempo } from './tap-tempo';
 import { TempoEstimator } from './tempo-estimator';
 
 export interface RhythmState {
@@ -14,11 +15,15 @@ export interface RhythmState {
   beatHit: boolean;
   /** 1 on the beat, decays in ~120 ms: a clean, regular pulse for the visuals. */
   beatPulse: number;
+  /** Where the tempo comes from: the music, or the DJ tapping it. */
+  source: 'auto' | 'tap';
 }
 
 /** Assumed until a tempo is found: typical for the genres. */
 const DEFAULT_BPM = 128;
 const PULSE_DECAY_SEC = 0.12;
+/** A tapped tempo is trusted at least this much. */
+const TAPPED_CONFIDENCE = 0.8;
 /** Two beats closer than this (fraction of a beat) mean the grid re-aligned: only one counts. */
 const MIN_BEAT_SPACING = 0.75;
 
@@ -26,15 +31,38 @@ const MIN_BEAT_SPACING = 0.75;
 export class RhythmTracker {
   private readonly tempo = new TempoEstimator();
   private readonly clock = new BeatClock();
+  private readonly tapTempo = new TapTempo();
+  private tappedPeriodSec: number | null = null;
   private previousPhase = 0;
   private lastBeatSec = Number.NEGATIVE_INFINITY;
+
+  /**
+   * A tap on the beat. After a few taps the tapped tempo and phase take over (the onsets still
+   * fine-tune them) until `clearTap()`: a fallback when the input is too weak or misleading.
+   */
+  tap(tSec: number): void {
+    const tapped = this.tapTempo.tap(tSec);
+    if (!tapped) return;
+    this.tappedPeriodSec = tapped.periodSec;
+    this.clock.anchor(tapped.beatSec);
+  }
+
+  clearTap(): void {
+    this.tappedPeriodSec = null;
+  }
 
   /** @param offsetSec display latency compensation: positive shows beats earlier */
   update(tSec: number, features: AudioFeatures, offsetSec = 0): RhythmState {
     const tempo = this.tempo.update(tSec, features.lowEndFlux);
-    const coarsePeriodSec = 60 / (tempo.bpm || DEFAULT_BPM);
+    const tapped = this.tappedPeriodSec !== null;
+    const coarsePeriodSec = this.tappedPeriodSec ?? 60 / (tempo.bpm || DEFAULT_BPM);
     // The grid weighs onsets by their punch: the kick, not an equally "bassy" off-beat note.
-    const clock = this.clock.update(tSec, coarsePeriodSec, features.kickHit ? features.punch : 0);
+    const clock = this.clock.update(
+      tSec,
+      coarsePeriodSec,
+      features.kickHit ? features.punch : 0,
+      !tapped,
+    );
     const { periodSec } = clock;
 
     const beatPhase = fract(clock.phase + offsetSec / periodSec);
@@ -44,11 +72,14 @@ export class RhythmTracker {
     if (beatHit) this.lastBeatSec = tSec;
 
     return {
-      bpm: tempo.bpm > 0 ? 60 / periodSec : 0,
-      confidence: tempo.confidence * clock.lock,
+      bpm: tapped || tempo.bpm > 0 ? 60 / periodSec : 0,
+      confidence: tapped
+        ? Math.max(TAPPED_CONFIDENCE, tempo.confidence * clock.lock)
+        : tempo.confidence * clock.lock,
       beatPhase,
       beatHit,
       beatPulse: Math.exp(-(beatPhase * periodSec) / PULSE_DECAY_SEC),
+      source: tapped ? 'tap' : 'auto',
     };
   }
 }

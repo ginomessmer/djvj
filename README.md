@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 2.** Audio in → beat tracking and song structure → 10 beat-synced scenes, chosen by a director that follows builds, drops and breakdowns. Logo/name overlay, a flash limiter and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -47,11 +47,22 @@ djvj listens for the kick and follows the music on its own:
 
 - **Tempo and beat grid.** It finds the BPM (115–160, tuned for techno, electronic and trance) and locks a beat grid onto the kick. An off-beat bassline does not fool it. Every scene pulses on the beat.
 - **Sections.** It recognises **groove**, **breakdown** (the bass leaves), **build-up** (the highs rise without bass) and the **drop** (the bass comes back).
-- **Director.** In a groove it changes scene every 64 beats (~30 s at 128 BPM). A breakdown gets a calm scene, a build a mid-energy one, and the drop an instant cut to a peak scene. All changes land on the beat. Without a beat lock it falls back to a 45 s timer.
+- **Director.** In a groove it changes scene every 64 beats (~30 s at 128 BPM). A breakdown gets a calm scene, a build a mid-energy one, and the drop an instant cut to a peak scene. Changes land on the beat and crossfade over a bar. Without a beat lock it falls back to a 45 s timer.
+- **Palettes.** With *Auto palette* on, a new palette comes with every drop and every third phrase, blended over a second. Picking a palette by hand locks it.
+- **Tap tempo.** If the Rhythm card never locks (a quiet mic, an unusual track), tap four times on the kick with **`T`** or the Tap button. The tapped tempo and phase stay, fine-tuned by the kicks, until *Back to auto*.
 - **Rhythm card** (control window): BPM, a beat light, the current section and how well the grid is locked.
 - **Beat offset.** Audio, analysis and the screen all add latency. If the pulse on the big screen trails the kick, move the slider right until it sits on it.
 
 The kick is detected in the 40–100 Hz band. A laptop microphone hears less bass than a line input, so if the Rhythm card never locks with the mic, use a USB interface or BlackHole.
+
+## Name and logo
+
+Optional, in the control window's *Name and logo* card: a DJ name and/or a logo (a transparent PNG works best; it is scaled down and stored in this browser). Show it small in the **corner**, or **big after each drop** (16 beats, and now and then in between). Off by default.
+
+## Safety and performance
+
+- **Flash guard.** The output's actual brightness is measured every frame (a tiny copy of the image, read back without stalling the GPU). If it flashes more than three times a second (the WCAG 2.3.1 limit), pulses are damped and the image dims slightly for a few seconds. The *flash guard* light in the Output card shows when it is active. Beat pulses up to 160 BPM stay under the limit; the guard is for the raw-kick fallback without a beat lock, which can fire on the off-beat bass too.
+- **Adaptive resolution.** When frames get slow, the resolution drops in steps (to 35 % of the pixels at most) and comes back once there is headroom, so the GPU never starves rekordbox. On by default; the Output card shows when it is reducing.
 
 ## Getting audio in
 
@@ -74,6 +85,7 @@ Work in the output window, and (except `F`) also in the control window.
 | `F`       | Fullscreen (output window only)                                            |
 | `A`       | Auto-rotate scenes on/off. Picking a scene manually locks it.              |
 | `N` / `C` | Next scene / next palette                                                  |
+| `T`       | Tap tempo (four taps on the kick)                                          |
 | `B`       | Blackout (fast fade to black)                                              |
 | `P`       | **Panic**: instantly switch to the safe ambient scene, which ignores audio |
 | `M`       | Simulated demo signal on/off                                               |
@@ -82,12 +94,13 @@ Work in the output window, and (except `F`) also in the control window.
 ## Behaviour worth knowing
 
 - With **no signal** and auto on, the output shows a calm idle scene instead of going dark. Scenes only change while there is music.
-- Scene changes dip through black on the beat; only the drop is a hard cut. A shader that fails to compile falls back to the safe scene.
+- Scene changes crossfade on the beat; only the drop and panic are hard cuts. A shader that fails to compile falls back to the safe scene.
+- Shortcuts are ignored while typing in a text field (the DJ name), so a name with a P does not trigger panic.
 - If the audio device disappears (USB unplugged), it keeps rendering and retries every 2 s.
 - The output window keeps working with **no control window** open. Control only sends messages.
 - Keep the output window **visible** on the second display: browsers throttle hidden windows.
 - Resolution is capped at a **1080p pixel budget** (adjustable in control) so the GPU stays free for rekordbox's audio.
-- Settings (device, palette, brightness, resolution, auto, beat offset) are remembered per browser.
+- Settings (device, palette, brightness, resolution, auto, beat offset, overlay) and the logo are remembered per browser.
 
 ## Code structure
 

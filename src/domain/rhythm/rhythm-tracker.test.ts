@@ -101,6 +101,50 @@ describe('RhythmTracker', () => {
     }
   });
 
+  it('takes a tapped tempo and phase when there is no kick at all', () => {
+    const tracker = new RhythmTracker();
+    track(silence(4, 0, true), tracker);
+    const tapSec = [4, 4 + BEAT_SEC, 4 + 2 * BEAT_SEC, 4 + 3 * BEAT_SEC];
+    for (const t of tapSec) tracker.tap(t);
+    const states = track(silence(6, 4 + 3 * BEAT_SEC, true), tracker);
+    const last = states.at(-1);
+    expect(last?.source).toBe('tap');
+    expect(Math.abs((last?.bpm ?? 0) - 128)).toBeLessThan(0.5);
+    expect(last?.confidence).toBeGreaterThanOrEqual(0.8);
+    const errors = beatErrors(states, tapSec[0], 5);
+    for (const error of errors) expect(Math.abs(error)).toBeLessThan(2 * ONE_FRAME);
+  });
+
+  it('keeps a tapped grid on the kick even where the off-beat is louder, until cleared', () => {
+    const tracker = new RhythmTracker();
+    // the off-beat punches harder: on its own the tracker would lock onto it
+    const frames = kickTrain({
+      bpm: BPM,
+      seconds: 16,
+      firstKickSec: 0.3,
+      offBeatStrength: 1,
+      offBeatPunch: 0.9,
+    });
+    track(
+      frames.filter((frame) => frame.tSec < 4),
+      tracker,
+    );
+    for (let i = 0; i < 4; i++) tracker.tap(0.3 + (8 + i) * BEAT_SEC);
+    const states = track(
+      frames.filter((frame) => frame.tSec >= 4),
+      tracker,
+    );
+    for (const error of beatErrors(states, 0.3, 8))
+      expect(Math.abs(error)).toBeLessThan(2 * ONE_FRAME);
+
+    tracker.clearTap();
+    const after = track(
+      kickTrain({ bpm: BPM, seconds: 1, startSec: 16, firstKickSec: 0.3 }),
+      tracker,
+    );
+    expect(after.at(-1)?.source).toBe('auto');
+  });
+
   it('loses confidence when the kick stops, and keeps counting beats', () => {
     const tracker = new RhythmTracker();
     track(kickTrain({ bpm: BPM, seconds: 10 }), tracker);

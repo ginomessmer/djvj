@@ -1,7 +1,7 @@
 import { PALETTES } from '@/domain/show/palettes';
 import type { SceneId } from '@/domain/show/scenes';
 import { SELECTABLE_SCENES } from '@/domain/show/scenes';
-import { lockScene, shortcutPatch } from '@/domain/show/shortcuts';
+import { lockPalette, lockScene, shortcutPatch } from '@/domain/show/shortcuts';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
 import { Card } from '../components/Card';
 import { Toggle } from '../components/Toggle';
@@ -39,7 +39,7 @@ export function SceneCard({ show, shownSceneId, onPatch }: SceneCardProps) {
         <select
           aria-label="Palette"
           value={show.paletteId}
-          onChange={(event) => onPatch({ paletteId: event.currentTarget.value })}
+          onChange={(event) => onPatch(lockPalette(event.currentTarget.value))}
         >
           {PALETTES.map((palette) => (
             <option key={palette.id} value={palette.id}>
@@ -51,6 +51,11 @@ export function SceneCard({ show, shownSceneId, onPatch }: SceneCardProps) {
           Next palette (C)
         </button>
       </div>
+      <Toggle
+        label="Auto palette (new colours on drops and every few phrases)"
+        checked={show.autoPalette}
+        onChange={(autoPalette) => onPatch({ autoPalette })}
+      />
     </Card>
   );
 }

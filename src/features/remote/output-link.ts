@@ -26,6 +26,15 @@ export function linkOutputToBus(
       case 'refresh-devices':
         void runtime.refreshDevices();
         break;
+      case 'tap':
+        runtime.tap();
+        break;
+      case 'clear-tap':
+        runtime.clearTap();
+        break;
+      case 'set-logo':
+        if (typeof message.dataUrl === 'string') runtime.setLogo(message.dataUrl);
+        break;
     }
   });
 

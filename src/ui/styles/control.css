@@ -186,3 +186,34 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+
+.control input[type="text"] {
+  font: inherit;
+  color: var(--text);
+  background: #1d1d28;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.file-button {
+  position: relative;
+  padding: 8px 12px;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tap {
+  min-width: 7rem;
+  font-weight: 700;
+}
+
+.tap:active {
+  border-color: var(--accent);
+  background: #2a1a26;
+}

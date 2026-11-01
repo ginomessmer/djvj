@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTES } from './palettes';
 import { SELECTABLE_SCENE_IDS } from './scenes';
-import { lockScene, shortcutPatch } from './shortcuts';
+import { lockPalette, lockScene, shortcutPatch } from './shortcuts';
 import { INITIAL_SHOW_STATE } from './show-state';
 
 const show = INITIAL_SHOW_STATE;
@@ -35,6 +35,10 @@ describe('shortcutPatch', () => {
     expect(shortcutPatch('A', show)).toEqual({ auto: !show.auto });
     expect(shortcutPatch('x', show)).toBeNull();
     expect(shortcutPatch('Enter', show)).toBeNull();
+  });
+
+  it('picking a palette by hand locks it', () => {
+    expect(lockPalette('ice')).toEqual({ paletteId: 'ice', autoPalette: false });
   });
 
   it('picking a scene by hand locks it', () => {
