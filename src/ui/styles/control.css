@@ -1,0 +1,151 @@
+.control {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.control__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.control__header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.control__header small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.control footer {
+  padding: 4px 2px 24px;
+}
+
+.pill {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+
+.pill--ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.pill--warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.card p {
+  margin: 0;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.row__end {
+  margin-left: auto;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.field__label {
+  display: flex;
+  justify-content: space-between;
+}
+
+.field output {
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 8px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.meter__track {
+  height: 8px;
+  background: #0e0e15;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok), var(--accent));
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+.led-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2a2a38;
+}
+
+.led--on {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}

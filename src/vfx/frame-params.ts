@@ -1,0 +1,14 @@
+import type { AudioFeatures } from '@/domain/audio/audio-features';
+import type { Palette } from '@/domain/show/palettes';
+
+/** Everything the stage needs to draw one frame. */
+export interface FrameParams {
+  /** Wall-clock seconds. */
+  time: number;
+  /** Time integrated with audio energy: use it for travel so speed changes stay smooth. */
+  flow: number;
+  features: Pick<AudioFeatures, 'bands' | 'energy' | 'kick' | 'onset'>;
+  palette: Palette;
+  /** Final brightness 0..1 (master level, fades, blackout). */
+  intensity: number;
+}
