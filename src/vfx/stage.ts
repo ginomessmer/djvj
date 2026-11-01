@@ -20,6 +20,13 @@ const PALETTE_BLEND_SEC = 0.7;
 /** The brightness probe: a tiny copy of the output, read back without stalling the GPU. */
 const PROBE_WIDTH = 32;
 const PROBE_HEIGHT = 18;
+/** The camera fades in when frames arrive and out when it goes, over about this long. */
+const CAMERA_FADE_SEC = 0.4;
+/**
+ * New camera frames are announced by `requestVideoFrameCallback`. Should that ever stay silent
+ * for longer than this while the video plays, the frame is uploaded anyway.
+ */
+const CAMERA_STALL_SEC = 0.25;
 /** Where the overlay sits, in fractions of the screen width. */
 const OVERLAY_LAYOUT = {
   corner: { width: 0.2, marginX: 0.03, marginY: 0.04 },
@@ -72,6 +79,11 @@ export class Stage {
   private previewTarget: THREE.WebGLRenderTarget | null = null;
   private previewReading = false;
   private previewReady: PreviewFrame | null = null;
+  /** Bound while there is no camera: one black texel. */
+  private readonly noCamera = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  private cameraTexture: THREE.VideoTexture | null = null;
+  private cameraVersion = -1;
+  private cameraVersionSec = 0;
 
   /** Shared by all scene materials: set once per frame. */
   private readonly sceneUniforms = {
@@ -85,6 +97,10 @@ export class Stage {
     u_beat: { value: 0 },
     u_pulse: { value: 0 },
     u_palette: { value: Array.from({ length: PALETTE_SIZE }, () => new THREE.Color()) },
+    u_camera: { value: this.noCamera as THREE.Texture },
+    u_cameraOn: { value: 0 },
+    u_cameraRes: { value: new THREE.Vector2(16, 9) },
+    u_cameraMirror: { value: 0 },
   };
 
   private readonly compositeUniforms = {
@@ -108,6 +124,7 @@ export class Stage {
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(1);
+    this.noCamera.needsUpdate = true;
     this.renderer.debug.onShaderError = (gl, program, _vertex, fragment) => {
       this.brokenScenes.add(this.activeSceneId);
       console.error(
@@ -212,6 +229,8 @@ export class Stage {
     this.probe.dispose();
     this.previewTarget?.dispose();
     this.overlay.dispose();
+    this.cameraTexture?.dispose();
+    this.noCamera.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -282,10 +301,11 @@ export class Stage {
       });
   }
 
-  private applyFrame({ time, flow, features, rhythm, palette }: FrameParams): void {
+  private applyFrame({ time, flow, features, rhythm, palette, camera }: FrameParams): void {
     const uniforms = this.sceneUniforms;
     const dtSec = this.lastTimeSec === null ? 1 : Math.min(1, Math.max(0, time - this.lastTimeSec));
     this.lastTimeSec = time;
+    this.applyCamera(camera, time, dtSec);
 
     uniforms.u_time.value = time;
     uniforms.u_flow.value = flow;
@@ -309,6 +329,46 @@ export class Stage {
     uniforms.u_palette.value.forEach((color, index) => {
       color.lerp(this.paletteTarget[index], blend);
     });
+  }
+
+  /**
+   * Keeps the camera texture on the current video and fades it in and out. A camera that goes
+   * away fades out on its last frame, then its texture is released.
+   */
+  private applyCamera({ video, mirror }: FrameParams['camera'], time: number, dtSec: number): void {
+    const uniforms = this.sceneUniforms;
+    if (video && this.cameraTexture?.image !== video) {
+      this.cameraTexture?.dispose();
+      const texture = new THREE.VideoTexture(video);
+      texture.generateMipmaps = true; // blur levels against sensor noise, and the frame's mean
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      this.cameraTexture = texture;
+      this.cameraVersion = -1;
+    }
+
+    const texture = this.cameraTexture;
+    const playing = !!video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+    if (texture && playing) {
+      if (texture.version !== this.cameraVersion) {
+        this.cameraVersion = texture.version;
+        this.cameraVersionSec = time;
+      } else if (time - this.cameraVersionSec > CAMERA_STALL_SEC) {
+        texture.needsUpdate = true;
+      }
+      if (video.videoWidth > 0) uniforms.u_cameraRes.value.set(video.videoWidth, video.videoHeight);
+    }
+
+    const fade = 1 - Math.exp(-dtSec / CAMERA_FADE_SEC);
+    const target = playing ? 1 : 0;
+    const on = uniforms.u_cameraOn.value + (target - uniforms.u_cameraOn.value) * fade;
+    uniforms.u_cameraOn.value = on < 0.002 && target === 0 ? 0 : on;
+    uniforms.u_cameraMirror.value = mirror ? 1 : 0;
+
+    if (!video && texture && uniforms.u_cameraOn.value === 0) {
+      texture.dispose();
+      this.cameraTexture = null;
+    }
+    uniforms.u_camera.value = this.cameraTexture ?? this.noCamera;
   }
 
   private applyOverlay({ name, logoUrl, opacity, layout }: OverlayParams): void {

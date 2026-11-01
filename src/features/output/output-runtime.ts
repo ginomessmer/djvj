@@ -20,6 +20,7 @@ import type { SceneId } from '@/domain/show/scenes';
 import type { LogoStorage } from '@/services/logo-storage';
 import type { Stage } from '@/vfx/stage';
 import type { AudioPipeline } from '../audio/audio-pipeline';
+import type { CameraPipeline } from '../camera/camera-pipeline';
 import { type ShowStoreApi, toShowState } from '../show/show-store';
 import { FrameStats } from './frame-stats';
 
@@ -27,6 +28,7 @@ export interface OutputRuntimeDeps {
   stage: Stage;
   store: ShowStoreApi;
   audio: AudioPipeline;
+  camera: CameraPipeline;
   director: Director;
   logoStorage: LogoStorage;
 }
@@ -90,11 +92,12 @@ export class OutputRuntime {
   private lastPreviewSec = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: OutputRuntimeDeps) {
-    const { store, audio } = deps;
+    const { store, audio, camera } = deps;
     this.shownSceneId = store.getState().sceneId;
     this.logoUrl = deps.logoStorage.load();
 
     audio.onChange = () => this.publish();
+    camera.onChange = () => this.publish();
     store.subscribe(() => this.publish());
     store.subscribe(
       (state) => state.silenceDb,
@@ -104,6 +107,12 @@ export class OutputRuntime {
       (state) => state.deviceId,
       (deviceId) => this.onDeviceSelected(deviceId),
     );
+    store.subscribe(
+      (state) => [state.cameraEnabled, state.cameraDeviceId] as const,
+      () => this.followCameraSettings(),
+      { equalityFn: (a, b) => a[0] === b[0] && a[1] === b[1] },
+    );
+    this.followCameraSettings();
   }
 
   start(): void {
@@ -126,7 +135,17 @@ export class OutputRuntime {
   }
 
   refreshDevices(): Promise<void> {
-    return this.deps.audio.refreshDevices();
+    const { audio, camera } = this.deps;
+    return Promise.all([audio.refreshDevices(), camera.refreshDevices()]).then(() => undefined);
+  }
+
+  /**
+   * Called on the click that starts the audio: a camera that failed for want of a gesture or a
+   * permission answer gets another chance from the same click.
+   */
+  retryCamera(): void {
+    const { camera, store } = this.deps;
+    if (store.getState().cameraEnabled && camera.status === 'error') this.followCameraSettings();
   }
 
   /** A tap on the beat; timed now, on the same clock as the frames. */
@@ -177,7 +196,7 @@ export class OutputRuntime {
   }
 
   getSnapshot(): ShowSnapshot {
-    const { audio, store } = this.deps;
+    const { audio, camera, store } = this.deps;
     const { features, rhythm } = this;
     return {
       show: toShowState(store.getState()),
@@ -186,6 +205,13 @@ export class OutputRuntime {
         error: audio.error,
         devices: audio.devices,
         activeDeviceId: audio.activeDeviceId,
+      },
+      camera: {
+        status: camera.status,
+        error: camera.error,
+        devices: camera.devices,
+        activeDeviceId: camera.activeDeviceId,
+        ready: camera.ready,
       },
       signal: {
         present: features.signal || store.getState().demo,
@@ -224,7 +250,7 @@ export class OutputRuntime {
 
   /** One frame. `start()` drives it from `requestAnimationFrame`; tests call it directly. */
   renderFrame(tSec: number): void {
-    const { stage, store, director } = this.deps;
+    const { stage, store, director, camera } = this.deps;
     const dtSec = this.lastFrameSec === 0 ? 1 / 60 : clamp(tSec - this.lastFrameSec, 0.001, 0.1);
     this.lastFrameSec = tSec;
     this.stats.record(dtSec);
@@ -243,6 +269,7 @@ export class OutputRuntime {
       live,
       section: this.section,
       energy: view.energy,
+      camera: camera.ready,
       beat: {
         hit: this.rhythm.beatHit,
         locked: this.rhythm.confidence >= BEAT_LOCK_CONFIDENCE,
@@ -280,6 +307,7 @@ export class OutputRuntime {
           frame.brightness *
           this.blackoutLevel *
           (1 - FLASH_GUARD.dimming * this.calm),
+        camera: { video: camera.video, mirror: show.cameraMirror },
       },
       {
         name: show.overlayName,
@@ -358,6 +386,16 @@ export class OutputRuntime {
     if (audio.status === 'running' && deviceId !== audio.activeDeviceId) {
       void this.startAudio(deviceId);
     }
+  }
+
+  private followCameraSettings(): void {
+    const { camera, store } = this.deps;
+    const { cameraEnabled, cameraDeviceId } = store.getState();
+    if (!cameraEnabled) {
+      if (camera.status !== 'off') camera.stop();
+      return;
+    }
+    void camera.start(cameraDeviceId);
   }
 
   private publish(): void {

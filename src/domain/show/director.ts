@@ -2,7 +2,7 @@ import { clamp } from '../math';
 import type { Section } from '../rhythm/section-tracker';
 import { type SceneMix, SceneMixer } from './scene-mixer';
 import { pickScene } from './scene-picker';
-import { IDLE_SCENE_ID, SAFE_SCENE_ID, type SceneId } from './scenes';
+import { IDLE_SCENE_ID, isCameraScene, SAFE_SCENE_ID, type SceneId } from './scenes';
 
 export interface DirectorInput {
   auto: boolean;
@@ -14,6 +14,8 @@ export interface DirectorInput {
   section: Section;
   /** Overall energy 0..1: picks scenes during a groove. */
   energy: number;
+  /** A camera is running and delivering frames: camera scenes may be rotated in. */
+  camera: boolean;
   beat: {
     /** True on the frame a beat starts. */
     hit: boolean;
@@ -61,13 +63,17 @@ const FALLBACK_BEAT_SEC = 60 / 128;
 /** The current scene and the ones before it are not picked again. */
 const RECENT_SCENES = 3;
 
-export type ChangeReason = 'phrase' | 'section' | 'drop';
+/**
+ * Why the director moved on. `camera`: the camera of the current camera scene went away, so it
+ * leaves on the next beat instead of showing the stand-in for the rest of the phrase.
+ */
+export type ChangeReason = 'phrase' | 'section' | 'drop' | 'camera';
 
 /** Crossfade lengths: the director's own changes last a bar, everything else a moment. */
 const TRANSITION_BEATS = 4;
 const FALLBACK_TRANSITION_SEC = 2;
 const OTHER_TRANSITION_SEC = 1.5;
-const PRIORITY: Record<ChangeReason, number> = { phrase: 1, section: 2, drop: 3 };
+const PRIORITY: Record<ChangeReason, number> = { phrase: 1, section: 2, camera: 3, drop: 4 };
 
 function strongest(a: ChangeReason | null, b: ChangeReason | null): ChangeReason | null {
   if (!a) return b;
@@ -112,7 +118,9 @@ export class Director {
       this.pending = strongest(this.pending, this.reasonToChange(input));
       if (this.pending && this.mayChangeNow(this.pending, input.beat)) {
         change = this.pending;
-        selectedId = pickScene(this.targetEnergy(input), this.recent, this.options.rng);
+        selectedId = pickScene(this.targetEnergy(input), this.recent, this.options.rng, {
+          camera: input.camera,
+        });
         this.restartWith(selectedId);
       }
     } else {
@@ -125,7 +133,13 @@ export class Director {
     return { ...mix, selectedId, change };
   }
 
-  private reasonToChange({ section, beat }: DirectorInput): ChangeReason | null {
+  private reasonToChange({
+    section,
+    beat,
+    camera,
+    selectedId,
+  }: DirectorInput): ChangeReason | null {
+    if (!camera && isCameraScene(selectedId)) return 'camera';
     const sectionChanged = this.lastSection !== null && section !== this.lastSection;
     if (sectionChanged && section === 'drop') return 'drop';
     if (sectionChanged && (section === 'breakdown' || section === 'build')) return 'section';
@@ -139,6 +153,7 @@ export class Director {
   private mayChangeNow(reason: ChangeReason, beat: DirectorInput['beat']): boolean {
     if (reason === 'drop') return true;
     if (beat.locked && !beat.hit) return false;
+    if (reason === 'camera') return true; // on the next beat, however recent the last change
     const { minBeatsBetweenChanges } = this.options;
     return beat.locked
       ? this.beatsSinceChange >= minBeatsBetweenChanges

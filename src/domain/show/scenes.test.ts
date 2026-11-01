@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_SCENE_ID,
   IDLE_SCENE_ID,
+  isCameraScene,
   nextSceneId,
   SAFE_SCENE_ID,
   SCENE_IDS,
@@ -30,11 +32,18 @@ describe('scene catalog', () => {
   it('offers at least two scenes at every energy level, so rotation always has a choice', () => {
     for (let step = 0; step <= 10; step++) {
       const energy = step / 10;
+      // Without the camera scenes: rotation must have a choice when there is no camera, too.
       const suitable = SELECTABLE_SCENES.filter(
-        ({ energy: [min, max] }) => energy >= min && energy <= max,
+        ({ energy: [min, max], camera }) => !camera && energy >= min && energy <= max,
       );
       expect(suitable.length, `energy ${energy}`).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  it('keeps the safe and the idle scene independent of the camera', () => {
+    expect(isCameraScene(SAFE_SCENE_ID)).toBe(false);
+    expect(isCameraScene(IDLE_SCENE_ID)).toBe(false);
+    expect(isCameraScene(DEFAULT_SCENE_ID)).toBe(false);
   });
 
   it('keeps the safe scene out of the rotation and the idle scene inside it', () => {

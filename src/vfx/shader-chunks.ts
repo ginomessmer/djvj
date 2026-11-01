@@ -25,6 +25,10 @@ uniform float u_onset;      // same for percussive onsets
 uniform float u_beat;       // 0..1 position in the beat, 0 = on the beat
 uniform float u_pulse;      // beat-locked: 1 on every beat, ~120 ms decay; u_kick without a lock
 uniform vec3  u_palette[4];
+uniform sampler2D u_camera;     // live camera frame, with mipmaps
+uniform float u_cameraOn;       // 0..1: eases in when frames arrive, out when the camera goes
+uniform vec2  u_cameraRes;      // camera frame size in pixels
+uniform float u_cameraMirror;   // 1 = mirrored like a selfie
 
 // Smoothly cycle through the four palette colours: t wraps at 1.
 vec3 pal(float t) {
@@ -60,6 +64,45 @@ float fbm(vec2 p) {
     a *= 0.5;
   }
   return v;
+}
+
+// ---- camera ---------------------------------------------------------------------------------
+
+// Screen uv to camera uv: cropped to fill the screen (no bars), optionally mirrored.
+vec2 cameraUv(vec2 uv) {
+  float screenAspect = u_res.x / u_res.y;
+  float cameraAspect = u_cameraRes.x / max(u_cameraRes.y, 1.0);
+  vec2 c = uv - 0.5;
+  if (cameraAspect > screenAspect) c.x *= screenAspect / cameraAspect;
+  else c.y *= cameraAspect / screenAspect;
+  c += 0.5;
+  if (u_cameraMirror > 0.5) c.x = 1.0 - c.x;
+  return c;
+}
+
+// What camera scenes show without a camera: a soft head-and-shoulders figure in drifting haze,
+// so a scene picked by hand (or the preview) is never just black.
+float cameraStandIn(vec2 uv) {
+  vec2 q = vec2((uv.x - 0.5) * u_res.x / u_res.y, uv.y);
+  q.x += 0.03 * sin(u_time * 0.7);
+  float head = smoothstep(0.15, 0.12, length((q - vec2(0.0, 0.62)) * vec2(1.0, 0.85)));
+  float body = smoothstep(0.36, 0.32, length((q - vec2(0.0, 0.08)) * vec2(0.85, 1.25)));
+  float haze = fbm(uv * 3.0 + vec2(0.0, u_time * 0.05));
+  return 0.12 + 0.25 * haze + 0.55 * max(head, body) * (0.6 + 0.4 * haze);
+}
+
+// Camera colour at screen uv. lod > 0 blurs (a mip level): smooths out sensor noise in the dark.
+// Auto gain lifts a dark booth to a usable level (from the mean of the frame, its smallest mip).
+vec3 cameraColor(vec2 uv, float lod) {
+  vec3 frame = textureLod(u_camera, cameraUv(uv), lod).rgb;
+  vec3 mean = textureLod(u_camera, vec2(0.5), 16.0).rgb;
+  float gain = clamp(0.42 / max(dot(mean, vec3(0.2126, 0.7152, 0.0722)), 0.02), 1.0, 5.0);
+  vec3 live = clamp(frame * gain, 0.0, 1.0);
+  return mix(vec3(cameraStandIn(uv)), live, u_cameraOn);
+}
+
+float cameraLuma(vec2 uv, float lod) {
+  return dot(cameraColor(uv, lod), vec3(0.2126, 0.7152, 0.0722));
 }
 
 vec3 render(vec2 uv, vec2 p);

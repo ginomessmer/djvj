@@ -4,6 +4,7 @@ import type { ShowPatch } from '@/domain/show/show-state';
 import type { Preferences } from '@/domain/ui/preferences';
 import { AppearanceDialog } from './AppearanceDialog';
 import { AudioInputPanel } from './AudioInputPanel';
+import { CameraPanel } from './CameraPanel';
 import { OutputPanel } from './OutputPanel';
 import { OverlayPanel } from './OverlayPanel';
 import { PreviewPanel } from './PreviewPanel';
@@ -110,6 +111,7 @@ export function ControlPanel({
               <ScenesPanel
                 show={snapshot.show}
                 shownSceneId={snapshot.shownSceneId}
+                cameraReady={snapshot.camera.ready}
                 onPatch={onPatch}
               />
             </div>
@@ -126,6 +128,12 @@ export function ControlPanel({
             <div class="dock dock--right">
               <AudioInputPanel
                 audio={snapshot.audio}
+                show={snapshot.show}
+                onPatch={onPatch}
+                onRefreshDevices={actions.onRefreshDevices}
+              />
+              <CameraPanel
+                camera={snapshot.camera}
                 show={snapshot.show}
                 onPatch={onPatch}
                 onRefreshDevices={actions.onRefreshDevices}

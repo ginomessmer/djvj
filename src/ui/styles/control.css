@@ -145,6 +145,13 @@ button.primary kbd {
   color: var(--text-dim);
 }
 
+.subtitle__note {
+  margin-left: 0.6rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* ---------- sliders: a thin groove, a filled part and a ringed thumb ---------- */
 
 input[type="range"] {
@@ -872,6 +879,12 @@ input[type="range"]::-moz-range-thumb {
   bottom: 0;
   border-radius: 2px;
   background: var(--text-dim);
+}
+
+/* A camera scene without a live camera: still pickable (it shows a stand-in), visibly not live. */
+.pad--standin:not([aria-pressed="true"]) {
+  border-style: dashed;
+  color: var(--text-dim);
 }
 
 .pad[aria-pressed="true"] {
