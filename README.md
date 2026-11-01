@@ -13,10 +13,14 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-1. Open **`/output.html`** (the "Open output" button on the launcher). Drag that window onto the big screen.
-2. Click once in it to allow audio input, then press **`F`** for fullscreen.
-3. Open **`/control.html`** on the laptop screen to pick the audio input, scenes and palette.
+1. Open **`/`**. That is the control view; it opens the output window as a popup by itself. If the browser blocks the popup, click *Open output window* (or press **`O`**), and allow pop-ups for the site to make it automatic.
+2. Drag the output window onto the big screen, click once in it to allow audio input, then press **`F`** for fullscreen.
+3. Pick the audio input, scenes and palette in the control view.
 4. No audio yet? Press **`M`** for a simulated 128 BPM track: a groove, then every 60 s a breakdown that builds into a drop.
+
+For a window without browser chrome, install it from Chrome (address bar → *Install djvj*). The control view then behaves like a desktop app.
+
+There is one `index.html`: `/` is the control view and `/?view=output` the output view. Reloading the control view never reloads a running output window.
 
 For a gig, build once and serve the static files locally (no internet needed):
 
@@ -76,13 +80,24 @@ The app analyses whatever input device the browser offers. It never plays the in
 
 Browser voice processing (echo cancellation, noise suppression, auto gain) is switched off, since it would mangle music. Input level is normalised automatically, so no gain staging is needed.
 
+## Control view
+
+Laptop first (three columns: preview and signal, scenes and palettes, rhythm and setup), two columns on a tablet, one on a phone. Blackout and Panic are always in the top bar; settings you set once (audio input, output quality, name and logo) are collapsed cards.
+
+- **Preview.** A live copy of the big screen, including blackout, palette and overlay. The output only renders it while a control window is open and visible, so it costs nothing otherwise.
+- **Appearance** (the half-circle button): *Dark* (default), *Light* for day gigs and *High contrast*, and an accent colour (presets or any colour). Text on the accent switches between black and white, and accent-coloured text is adjusted to stay readable. Only the control window changes; it is remembered per browser. Text contrast of every theme is checked by a test.
+- **Accessibility.** Every control works from the keyboard with a visible focus ring, switches and toggle buttons announce their state, dialogs trap focus, targets are at least 44 px, and reduced motion is respected.
+
 ## Keys
 
-Work in the output window, and (except `F`) also in the control window.
+Press **`?`** in the control view for the list. Single keys work in the output window and (except `F` and `D`) in the control window.
 
 | Key       | Action                                                                     |
 | --------- | -------------------------------------------------------------------------- |
 | `F`       | Fullscreen (output window only)                                            |
+| `O`       | Open or focus the output window (control window only)                      |
+| `1`…`0`   | Pick scene 1 to 10 (same order as the pads). Locks it.                     |
+| `?`       | Shortcut list (control window only)                                        |
 | `A`       | Auto-rotate scenes on/off. Picking a scene manually locks it.              |
 | `N` / `C` | Next scene / next palette                                                  |
 | `T`       | Tap tempo (four taps on the kick)                                          |
@@ -108,7 +123,7 @@ Five layers plus the entry points. A layer may only import the ones below it; `s
 
 | Layer         | Responsibility                                                                                               | May use                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| `domain/`     | Pure logic and types: audio analysis, rhythm and song structure, scene director, settings, palettes, shortcuts, message protocol | `zod`                            |
+| `domain/`     | Pure logic and types: audio analysis, rhythm and song structure, scene director, settings, palettes, shortcuts, message protocol, colour and theme preferences | `zod`                            |
 | `services/`   | Thin adapters to browser APIs: Web Audio input, `BroadcastChannel`, keyboard                                 | domain                           |
 | `vfx/`        | The three.js stage and the GLSL scenes                                                                       | domain, `three`                  |
 | `features/`   | Use cases that wire the above together: show store, audio pipeline, output runtime, link to the control window | domain, services, vfx, `zustand` |
@@ -121,8 +136,8 @@ src/
   services/  audio-input   message-bus   keyboard
   vfx/       stage   shader-chunks   scenes/*.glsl
   features/  audio/   show/ (zustand store)   output/ (runtime)   remote/ (output-link)
-  ui/        components/   control/   output/   styles/
-  app/       output/   control/
+  ui/        components/   control/   output/   styles/ (themes.css = colour tokens)
+  app/       main.ts (picks the view)   output/   control/
 ```
 
 Data flow: audio input → `FeatureExtractor` → `RhythmTracker` + `SectionTracker` (domain) → `OutputRuntime` (features) → `Director` picks the scene (domain) → `Stage` draws it (vfx). The output window owns all state; the control window sends validated patches and renders the snapshots it gets back.

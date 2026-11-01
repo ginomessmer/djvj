@@ -186,4 +186,51 @@ describe('OutputRuntime', () => {
     expect(snapshot.performance.resolution).toEqual([640, 360]);
     expect(() => structuredClone(snapshot)).not.toThrow(); // what postMessage requires
   });
+
+  describe('preview', () => {
+    const frame = { width: 2, height: 2, pixels: new Uint8ClampedArray(16) };
+
+    it('costs nothing until a control window is watching', () => {
+      const { runtime, stage } = createTestRuntime();
+      stage.takePreviewFrame.mockReturnValue(frame);
+      const frames: unknown[] = [];
+      runtime.subscribeFrames((f) => frames.push(f));
+      runtime.renderFrame(1);
+      expect(stage.setPreviewWanted).toHaveBeenLastCalledWith(false);
+      expect(frames).toHaveLength(0);
+    });
+
+    it('sends frames while watched, at most ten per second, and stops when the watch lapses', () => {
+      const { runtime, stage } = createTestRuntime();
+      stage.takePreviewFrame.mockReturnValue(frame);
+      const frames: unknown[] = [];
+      runtime.subscribeFrames((f) => frames.push(f));
+
+      runtime.watchPreview(1);
+      runtime.renderFrame(1.01);
+      expect(stage.setPreviewWanted).toHaveBeenLastCalledWith(true);
+      expect(frames).toHaveLength(1);
+
+      runtime.renderFrame(1.05); // too soon after the last one
+      expect(frames).toHaveLength(1);
+      runtime.renderFrame(1.2);
+      expect(frames).toHaveLength(2);
+
+      runtime.renderFrame(5); // nobody asked again for 3 s
+      expect(stage.setPreviewWanted).toHaveBeenLastCalledWith(false);
+      expect(frames).toHaveLength(2);
+    });
+
+    it('stops sending to a listener that unsubscribed', () => {
+      const { runtime, stage } = createTestRuntime();
+      stage.takePreviewFrame.mockReturnValue(frame);
+      const frames: unknown[] = [];
+      const stop = runtime.subscribeFrames((f) => frames.push(f));
+      stop();
+      runtime.watchPreview(1);
+      runtime.renderFrame(1.01);
+      expect(frames).toHaveLength(0);
+      expect(stage.setPreviewWanted).toHaveBeenLastCalledWith(false);
+    });
+  });
 });

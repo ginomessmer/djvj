@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BAND_COUNT } from '@/domain/audio/bands';
+import { flipRows, PREVIEW_WIDTH, type PreviewFrame, previewHeight } from '@/domain/remote/preview';
 import { meanRelativeLuminance } from '@/domain/safety/luminance';
 import type { SceneMix } from '@/domain/show/scene-mixer';
 import { SAFE_SCENE_ID, type SceneId } from '@/domain/show/scenes';
@@ -67,6 +68,10 @@ export class Stage {
   private lastTimeSec: number | null = null;
   private probing = false;
   private latestLuminance: LuminanceSample | null = null;
+  private previewWanted = false;
+  private previewTarget: THREE.WebGLRenderTarget | null = null;
+  private previewReading = false;
+  private previewReady: PreviewFrame | null = null;
 
   /** Shared by all scene materials: set once per frame. */
   private readonly sceneUniforms = {
@@ -179,6 +184,20 @@ export class Stage {
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.compositeScene, this.camera);
     this.measure(frame.time);
+    if (this.previewWanted) this.capturePreview();
+  }
+
+  /** Turns the preview on or off. Off costs nothing: no extra pass, no read-back. */
+  setPreviewWanted(wanted: boolean): void {
+    this.previewWanted = wanted;
+    if (!wanted) this.previewReady = null;
+  }
+
+  /** The newest preview frame that finished reading back, once. Arrives a frame or two late. */
+  takePreviewFrame(): PreviewFrame | null {
+    const frame = this.previewReady;
+    this.previewReady = null;
+    return frame;
   }
 
   /** The most recent brightness measurement (arrives a frame or two after it was drawn). */
@@ -191,6 +210,7 @@ export class Stage {
     this.targets.from.dispose();
     this.targets.to.dispose();
     this.probe.dispose();
+    this.previewTarget?.dispose();
     this.overlay.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -227,6 +247,38 @@ export class Stage {
       .catch(() => undefined)
       .finally(() => {
         this.probing = false;
+      });
+  }
+
+  /** Renders the composite (overlay and master level included) small, and reads it back async. */
+  private capturePreview(): void {
+    if (this.previewReading) return;
+    const width = PREVIEW_WIDTH;
+    const height = previewHeight(this.drawingBufferSize.x, this.drawingBufferSize.y);
+    if (!this.previewTarget) {
+      this.previewTarget = new THREE.WebGLRenderTarget(width, height, {
+        depthBuffer: false,
+        generateMipmaps: false,
+      });
+    } else if (this.previewTarget.height !== height) {
+      this.previewTarget.setSize(width, height);
+    }
+    const target = this.previewTarget;
+    const pixels = new Uint8Array(width * height * 4);
+
+    this.previewReading = true;
+    this.compositeUniforms.u_res.value.set(width, height);
+    this.renderer.setRenderTarget(target);
+    this.renderer.render(this.compositeScene, this.camera);
+    this.renderer.setRenderTarget(null);
+    this.renderer
+      .readRenderTargetPixelsAsync(target, 0, 0, width, height, pixels)
+      .then(() => {
+        this.previewReady = { width, height, pixels: flipRows(pixels, width, height) };
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        this.previewReading = false;
       });
   }
 

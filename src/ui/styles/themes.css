@@ -1,0 +1,59 @@
+/*
+ * Colour tokens for the control window. Dark is the default (clubs, dim light); light is for day
+ * gigs; high contrast is for glare and tired eyes. The output page has no theme and stays dark.
+ *
+ * Contrast is enforced by themes.test.ts:
+ *   text, text-dim, ok, warn, danger on bg, surface and surface-2   >= 4.5 (7 in high contrast)
+ *   edge (borders of controls) on surface                           >= 3
+ */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0c10;
+  --surface: #15171d;
+  --surface-2: #1e212a;
+  --surface-3: #292d39;
+  --line: #2a2e3a;
+  --edge: #6d7487;
+  --text: #e9ebf1;
+  --text-dim: #a4aabb;
+  --ok: #2fe08f;
+  --warn: #ffbf3d;
+  --danger: #ff6b78;
+  --danger-ink: #000000;
+  --accent: #ff2e97;
+  --accent-ink: #000000;
+  --accent-fg: #ff2e97;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e6e8ee;
+  --surface: #ffffff;
+  --surface-2: #f1f2f6;
+  --surface-3: #e3e5ec;
+  --line: #cdd1db;
+  --edge: #767d90;
+  --text: #14161c;
+  --text-dim: #4a5064;
+  --ok: #076d3d;
+  --warn: #835000;
+  --danger: #b3202f;
+  --danger-ink: #ffffff;
+}
+
+:root[data-theme="contrast"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #101014;
+  --surface-3: #1f1f26;
+  --line: #ffffff;
+  --edge: #ffffff;
+  --text: #ffffff;
+  --text-dim: #e0e0e6;
+  --ok: #4dffa6;
+  --warn: #ffd95a;
+  --danger: #ff8b95;
+  --danger-ink: #000000;
+}

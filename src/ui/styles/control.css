@@ -1,72 +1,628 @@
-.control {
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 16px;
-  display: grid;
-  gap: 12px;
+/*
+ * The control window is laid out like a desktop application, not a web page:
+ *  - the window never scrolls on a laptop: toolbar on top, status bar below, docks in between
+ *  - panels are soft grouped surfaces on a darker backdrop, never a page of floating cards
+ *  - dense, flat controls; no hover lifts, no shadows, nothing animates but a switch
+ *  - the chrome cannot be selected or dragged (text fields can), the cursor stays an arrow
+ * A mouse gets 14 px text and 34 px controls with generous gaps; a touch screen gets 15 px and 44 px targets.
+ */
+
+html.is-app {
+  --control: 2.45rem;
+  font-size: 14px;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
-.control__header {
+@media (pointer: coarse) {
+  html.is-app {
+    --control: 2.95rem;
+    font-size: 15px;
+  }
+}
+
+html.is-app body {
+  height: 100%;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+#root {
+  height: 100%;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+}
+
+input[type="text"],
+select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) transparent;
+}
+
+/* ---------- controls ---------- */
+
+button,
+select,
+.button,
+input[type="text"] {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 0 0.75rem;
+  min-height: var(--control);
+  cursor: default;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+input[type="text"] {
+  cursor: text;
+  width: 100%;
+  justify-content: flex-start;
+  background: var(--bg);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+select {
+  padding-right: 0.4rem;
+}
+
+button:hover:not(:disabled),
+.button:hover,
+select:hover {
+  background: var(--surface-3);
+}
+
+button:active:not(:disabled),
+.button:active {
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+button:disabled {
+  opacity: 0.45;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+button.primary kbd {
+  color: var(--accent-ink);
+  background: transparent;
+  border-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.77rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ---------- sliders: a thin groove, a filled part and a ringed thumb ---------- */
+
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: var(--control);
+  margin: 0;
+  background: transparent;
+  cursor: default;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill, 0%),
+    var(--surface-3) var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill, 0%),
+    var(--surface-3) var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--accent);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--accent);
+}
+
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-runnable-track,
+  input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -9px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ---------- toolbar ---------- */
+
+.topbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.topbar button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Installed as an app with the title bar folded into the toolbar: leave room for the buttons. */
+@media (display-mode: window-controls-overlay) {
+  .topbar {
+    padding-left: calc(env(titlebar-area-x, 0px) + 0.75rem);
+    padding-right: calc(
+      100vw -
+      env(titlebar-area-x, 0px) -
+      env(titlebar-area-width, 100vw) +
+      0.75rem
+    );
+    min-height: env(titlebar-area-height, 2.9rem);
+  }
+}
+
+.topbar__group {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.control__header h1 {
+.topbar__tools {
+  margin-left: 0.9rem;
+  gap: 0.6rem;
+}
+
+.topbar__live {
+  margin-left: auto;
+  gap: 1.3rem;
+}
+
+.brand {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.control__header small {
-  color: var(--muted);
-  font-weight: 400;
+.status {
+  gap: 0.5rem;
 }
 
-.control footer {
-  padding: 4px 2px 24px;
+.status__action {
+  color: var(--accent-fg);
+  font-weight: 700;
 }
 
-.pill {
-  font-size: 0.78rem;
-  padding: 3px 10px;
-  border-radius: 999px;
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot--ok {
+  background: var(--ok);
+}
+
+.dot--warn {
+  background: var(--warn);
+}
+
+/* The tempo readout sits in an inset display, like the LCD of a mixer or a deck. */
+.lcd {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  gap: 0.8rem;
+  min-height: var(--control);
+  padding: 0 0.7rem;
+  background: var(--bg);
   border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4);
 }
 
-.pill--ok {
-  color: var(--ok);
-  border-color: var(--ok);
+.bpm {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 5.4rem;
 }
 
-.pill--warn {
-  color: var(--warn);
-  border-color: var(--warn);
+.bpm small {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-dim);
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: grid;
-  gap: 10px;
-}
-
-.card p {
-  margin: 0;
-}
-
-.card__title {
-  margin: 0;
+.section-tag {
   font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-dim);
+  min-width: 4.4rem;
+  text-align: center;
+}
+
+.section-tag--groove {
+  color: var(--ok);
+}
+
+.section-tag--build {
+  color: var(--warn);
+}
+
+.section-tag--drop {
+  color: var(--accent-fg);
+}
+
+.live {
+  min-width: 7rem;
+  min-height: calc(var(--control) * 1.1);
+  font-weight: 700;
+}
+
+.live[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.live--panic {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.live--panic[aria-pressed="true"] {
+  background: var(--danger);
+  color: var(--danger-ink);
+  border-color: var(--danger);
+}
+
+.live[aria-pressed="true"] kbd {
+  color: inherit;
+  background: transparent;
+  border-color: currentColor;
+}
+
+.icon-button {
+  width: var(--control);
+  padding: 0;
+  font-weight: 700;
+}
+
+/* ---------- docks ---------- */
+
+.workspace {
+  /* The containing block of the screen-reader-only helpers, so they scroll (and clip) with it. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  grid-template-columns: minmax(0, 1fr);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.dock {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A phone: one column, and the whole workspace scrolls. */
+@media (max-width: 759px) {
+  .workspace {
+    grid-auto-rows: min-content;
+  }
+}
+
+/* A tablet: monitor and scenes on the left, rhythm above the inspector on the right. */
+@media (min-width: 760px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .dock {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .dock--center {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .dock--left {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dock--right {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* A laptop: rhythm and signal | monitor and scenes | inspector. */
+@media (min-width: 1180px) {
+  .workspace {
+    grid-template-columns: 19rem minmax(0, 1fr) 19.5rem;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .dock--left {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dock--center {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dock--right {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+.welcome {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  background: var(--surface);
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 0.9rem;
+  padding: 2rem max(1rem, calc(50% - 20rem));
+}
+
+.welcome h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.welcome__cta {
+  min-height: calc(var(--control) * 1.3);
+  font-size: 1.1rem;
+  padding: 0 1.5rem;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.3rem;
+  line-height: 1.8;
+}
+
+.welcome,
+.welcome * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ---------- panels ---------- */
+
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.panel p {
+  margin: 0;
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.4rem;
+  padding: 0 1rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 0.77rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.panel__hint {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.panel__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  min-width: 0;
+}
+
+.panel--flush > .panel__body {
+  padding: 0;
+  gap: 0;
+}
+
+.panel__strip {
+  padding: 0.35rem 1rem;
+  border-top: 1px solid var(--line);
+}
+
+/* The monitor takes whatever height the window has left over. */
+.dock--center {
+  container-type: inline-size;
+}
+
+/* ...but never taller than its 16:9 picture needs (header and control strip included). */
+.panel--preview {
+  flex: 1 1 0;
+  /* Header, a readable picture and the brightness strip: below this the dock scrolls instead. */
+  min-height: 17rem;
+  max-height: calc(100cqw * 9 / 16 + var(--control) * 1.95 + 0.5rem + 2px);
+}
+
+.panel--preview > .panel__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+/* One row of low meters: enough to see that sound arrives, not a block that fills the column. */
+
+.panel__leds {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  white-space: nowrap;
+}
+
+.panel__leds .panel__hint {
+  margin-left: 0;
+}
+
+/* Foldable inspector sections. */
+.panel--fold > summary {
+  cursor: default;
+  list-style: none;
+}
+
+.panel--fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel--fold:not([open]) > summary {
+  border-bottom: 0;
+}
+
+.panel__chevron {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid var(--text-dim);
+  border-bottom: 1.5px solid var(--text-dim);
+  transform: rotate(-45deg);
+  margin-right: 0.1rem;
+}
+
+.panel--fold[open] > summary .panel__chevron {
+  transform: rotate(45deg);
 }
 
 .row {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -81,139 +637,684 @@
 
 .field {
   display: grid;
-  gap: 4px;
-  font-size: 0.85rem;
+  gap: 0;
 }
 
 .field__label {
   display: flex;
   justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .field output {
-  color: var(--muted);
+  color: var(--text-dim);
 }
 
-.toggle {
+/* A strip under the toolbar, like a document window's notice bar. */
+.banner {
+  flex: none;
+  margin: 0;
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
-  font-size: 0.85rem;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--accent-fg);
 }
 
-.scene-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: 8px;
+.banner--warn {
+  border-left-color: var(--warn);
 }
+
+.banner button {
+  min-height: calc(var(--control) * 0.85);
+}
+
+.notice {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.notice--warn {
+  border-color: var(--warn);
+}
+
+/* ---------- switch ---------- */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--control);
+  cursor: default;
+  position: relative;
+}
+
+.panel__header .switch {
+  margin-left: auto;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: default;
+}
+
+.switch__track {
+  flex: none;
+  width: 2.1rem;
+  height: 1.15rem;
+  border-radius: 0.6rem;
+  background: var(--surface-3);
+  border: 1px solid var(--edge);
+  position: relative;
+}
+
+.switch__track::after {
+  content: "";
+  position: absolute;
+  top: 0.14rem;
+  left: 0.14rem;
+  width: 0.73rem;
+  height: 0.73rem;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.1s;
+}
+
+.switch input:checked + .switch__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch input:checked + .switch__track::after {
+  transform: translateX(0.95rem);
+  background: var(--accent-ink);
+}
+
+.switch input:focus-visible + .switch__track {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+/* ---------- monitor ---------- */
+
+.preview {
+  position: relative;
+  background: #000;
+  flex: 1;
+  min-height: 7rem;
+  line-height: 1.2;
+}
+
+@media (max-width: 759px) {
+  .preview {
+    flex: none;
+    aspect-ratio: 16 / 9;
+  }
+
+  .panel--preview {
+    flex: none;
+  }
+}
+
+.preview__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.preview--offline .preview__canvas {
+  opacity: 0.25;
+}
+
+.preview__note {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 4px #000;
+}
+
+.preview__osd {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+  opacity: 0.85;
+}
+
+/* ---------- scene pads and palettes ---------- */
+
+.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.pads {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.6rem, 1fr));
+  gap: 10px;
+}
+
+@container (min-width: 40rem) {
+  .pads {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.pad {
+  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 5.7rem;
+  padding: 0.8rem 0.85rem 0.7rem;
+  gap: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 1.05rem;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pad::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--tint, var(--surface-3));
+  opacity: 0.7;
+}
+.pad__key {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.6rem;
+}
+
+.pad__name {
+  max-width: 100%;
+  margin-top: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pad__energy {
+  position: relative;
+  align-self: stretch;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+
+.pad__energy i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: var(--text-dim);
+}
+
+.pad[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  /* The scene that is on air: a ring that reads from across a dark room. */
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent-fg);
+}
+
+.pad[aria-pressed="true"]::before {
+  opacity: 0;
+}
+
+.pad[aria-pressed="true"] kbd {
+  color: var(--accent-ink);
+  background: transparent;
+  border-color: currentColor;
+}
+
+.pad[aria-pressed="true"] .pad__energy {
+  background: rgb(0 0 0 / 0.25);
+}
+
+.pad[aria-pressed="true"] .pad__energy i {
+  background: var(--accent-ink);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+  gap: 10px;
+}
+
+.swatch {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  min-height: 3.3rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.swatch__colors {
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid rgb(127 127 127 / 0.5);
+}
+
+.swatch[aria-pressed="true"] {
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 1px var(--accent-fg) inset;
+  font-weight: 700;
+}
+
+/* ---------- meters: segmented like the level meters of a mixer ---------- */
 
 .meter {
   display: grid;
-  grid-template-columns: 4.5rem 1fr;
-  gap: 8px;
+  grid-template-columns: 3rem 1fr;
+  gap: 0.6rem;
   align-items: center;
-  font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--text-dim);
 }
 
 .meter__track {
   height: 8px;
-  background: #0e0e15;
-  border-radius: 4px;
+  background: var(--surface-3);
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .meter__fill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--ok), var(--accent));
+  background: var(--accent);
   transform-origin: left center;
   transform: scaleX(0);
+}
+
+.bars {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  height: 3.9rem;
+}
+
+.bar {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0.3rem;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.bar__track {
+  position: relative;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar__track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to top, transparent 0 4px, var(--surface) 4px 5px);
+}
+
+.bar__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: bottom center;
+  transform: scaleY(0);
 }
 
 .led-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
+  gap: 0.45rem;
 }
 
 .led {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: #2a2a38;
+  background: var(--surface-3);
+  border: 1px solid var(--edge);
 }
 
 .led--on {
   background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-}
-
-.bpm {
-  font-size: 1.6rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  min-width: 7.5rem;
-}
-
-.bpm small {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.section-tag {
-  margin-left: auto;
-  font-size: 0.8rem;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
-}
-
-.section-tag--groove {
-  color: var(--ok);
   border-color: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
 }
 
-.section-tag--build {
-  color: var(--warn);
-  border-color: var(--warn);
+.tap {
+  min-width: 7.5rem;
+  min-height: calc(var(--control) * 1.7);
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
-.section-tag--drop {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.control input[type="text"] {
-  font: inherit;
-  color: var(--text);
-  background: #1d1d28;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
+.tap:active {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .file-button {
   position: relative;
-  padding: 8px 12px;
+  overflow: hidden;
 }
 
 .file-button input {
   position: absolute;
   inset: 0;
   opacity: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
-.tap {
-  min-width: 7rem;
+.file-button:focus-within {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+/* ---------- status bar ---------- */
+
+.statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 1.75rem;
+  padding: 0 0.75rem;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.statusbar__hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.55;
+}
+
+.statusbar__hint--on {
+  opacity: 1;
+  color: var(--text);
+}
+
+@media (max-width: 559px) {
+  .statusbar > :nth-child(n + 5):not(:last-child):not(.statusbar__hint) {
+    display: none;
+  }
+}
+
+/* ---------- dialogs: a sheet with a title strip ---------- */
+
+.dialog {
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  width: min(30rem, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.dialog__panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0 0 0.9rem;
+}
+
+.dialog__panel > :not(.dialog__header) {
+  margin-inline: 0.9rem;
+}
+
+.dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.dialog__header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.choice {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choice legend {
+  padding: 0;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.choice__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.choice__option,
+.accent-option,
+.accent-custom {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control);
+  min-width: var(--control);
+  padding: 0 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: var(--surface-2);
+  cursor: default;
+}
+
+.choice__option input,
+.accent-option input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: default;
+}
+
+.choice__option:has(input:checked),
+.accent-option:has(input:checked),
+.accent-custom--active {
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 1px var(--accent-fg) inset;
   font-weight: 700;
 }
 
-.tap:active {
-  border-color: var(--accent);
-  background: #2a1a26;
+.choice__option:has(input:focus-visible),
+.accent-option:has(input:focus-visible),
+.accent-custom:has(input:focus-visible) {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+.accent-option {
+  padding: 0;
+}
+
+.accent-option__chip {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  outline: 1px solid var(--edge);
+}
+
+.accent-custom {
+  gap: 0.5rem;
+}
+
+.accent-custom input {
+  width: 1.8rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.shortcuts dl {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.shortcuts__row {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.shortcuts__row dt {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.shortcuts__row dd {
+  margin: 0;
+}
+
+.shortcuts__row small {
+  color: var(--text-dim);
+}
+
+/* ---------- phone ---------- */
+
+@media (max-width: 559px) {
+  .topbar {
+    padding: 0.3rem 0.6rem;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .topbar__live {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+
+  .live {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar__tools {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .lcd {
+    order: 2;
+  }
+
+  .topbar__live {
+    order: 3;
+  }
+
+  .pads {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .welcome h2 {
+    font-size: 1.35rem;
+  }
+}
+
+/* ---------- touch and accessibility ---------- */
+
+/* No keyboard on a touch screen: key hints would only add noise. */
+@media (hover: none) {
+  button kbd,
+  label kbd,
+  .pad__key {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .pad {
+    min-height: 5.4rem;
+  }
+}
+
+@media (hover: none) {
+  .statusbar__hint {
+    visibility: hidden;
+  }
+}
+
+:root[data-theme="contrast"] button,
+:root[data-theme="contrast"] select,
+:root[data-theme="contrast"] .button,
+:root[data-theme="contrast"] input[type="text"] {
+  border-width: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch__track::after {
+    transition: none;
+  }
 }

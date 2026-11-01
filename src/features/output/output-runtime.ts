@@ -3,6 +3,11 @@ import { demoFeatures } from '@/domain/audio/demo-features';
 import { idleFeatures } from '@/domain/audio/idle-features';
 import { clamp, smoothstep } from '@/domain/math';
 import { ResolutionGovernor } from '@/domain/performance/resolution-governor';
+import {
+  PREVIEW_INTERVAL_SEC,
+  PREVIEW_WATCH_SEC,
+  type PreviewFrame,
+} from '@/domain/remote/preview';
 import { MAX_LOGO_DATA_URL_LENGTH, type ShowSnapshot } from '@/domain/remote/protocol';
 import { type RhythmState, RhythmTracker } from '@/domain/rhythm/rhythm-tracker';
 import { type Section, SectionTracker } from '@/domain/rhythm/section-tracker';
@@ -50,6 +55,7 @@ const NO_RHYTHM: RhythmState = {
 };
 
 type SnapshotListener = (snapshot: ShowSnapshot) => void;
+type FrameListener = (frame: PreviewFrame) => void;
 
 /**
  * The show loop of the output window. Each frame it senses audio, follows the rhythm and the
@@ -59,6 +65,7 @@ type SnapshotListener = (snapshot: ShowSnapshot) => void;
  */
 export class OutputRuntime {
   private readonly listeners = new Set<SnapshotListener>();
+  private readonly frameListeners = new Set<FrameListener>();
   private readonly stats = new FrameStats();
   private readonly rhythmTracker = new RhythmTracker();
   private readonly sectionTracker = new SectionTracker();
@@ -79,6 +86,8 @@ export class OutputRuntime {
   private lastFrameSec = 0;
   private lastSnapshotSec = 0;
   private lastLuminanceSec = Number.NEGATIVE_INFINITY;
+  private previewWatchedUntilSec = Number.NEGATIVE_INFINITY;
+  private lastPreviewSec = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: OutputRuntimeDeps) {
     const { store, audio } = deps;
@@ -143,6 +152,21 @@ export class OutputRuntime {
     this.logoUrl = dataUrl;
     this.deps.logoStorage.save(dataUrl);
     this.publish();
+  }
+
+  /**
+   * A control window shows the preview pane: produce frames for the next few seconds. It has to
+   * keep asking, so a closed or hidden control window stops costing the output anything.
+   */
+  watchPreview(tSec = performance.now() / 1000): void {
+    this.previewWatchedUntilSec = tSec + PREVIEW_WATCH_SEC;
+  }
+
+  subscribeFrames(listener: FrameListener): () => void {
+    this.frameListeners.add(listener);
+    return () => {
+      this.frameListeners.delete(listener);
+    };
   }
 
   subscribe(listener: SnapshotListener): () => void {
@@ -265,9 +289,23 @@ export class OutputRuntime {
       },
     );
 
+    this.forwardPreview(tSec);
+
     if (tSec - this.lastSnapshotSec >= SNAPSHOT_INTERVAL_SEC) {
       this.lastSnapshotSec = tSec;
       this.publish();
+    }
+  }
+
+  private forwardPreview(tSec: number): void {
+    const { stage } = this.deps;
+    const wanted = this.frameListeners.size > 0 && tSec < this.previewWatchedUntilSec;
+    stage.setPreviewWanted(wanted);
+    if (!wanted) return;
+    const frame = stage.takePreviewFrame();
+    if (frame && tSec - this.lastPreviewSec >= PREVIEW_INTERVAL_SEC) {
+      this.lastPreviewSec = tSec;
+      for (const listener of this.frameListeners) listener(frame);
     }
   }
 

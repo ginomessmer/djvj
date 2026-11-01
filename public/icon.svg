@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>djvj</title>
+  <rect width="512" height="512" rx="112" fill="#0b0c10"/>
+  <g fill="none" stroke="#ff2e97" stroke-width="30" stroke-linecap="round">
+    <circle cx="256" cy="256" r="150"/>
+    <circle cx="256" cy="256" r="84" stroke="#2fe0e0"/>
+  </g>
+  <circle cx="256" cy="256" r="26" fill="#ffffff"/>
+</svg>
