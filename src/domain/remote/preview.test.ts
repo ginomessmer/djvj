@@ -3,13 +3,13 @@ import { flipRows, PREVIEW_WIDTH, previewHeight } from './preview';
 
 describe('previewHeight', () => {
   it('follows the output aspect ratio', () => {
-    expect(previewHeight(1920, 1080)).toBe(144);
+    expect(previewHeight(1920, 1080)).toBe(Math.round((PREVIEW_WIDTH * 9) / 16));
     expect(previewHeight(1000, 1000)).toBe(PREVIEW_WIDTH);
-    expect(previewHeight(2560, 1080)).toBe(108);
+    expect(previewHeight(2560, 1080)).toBe(Math.round((PREVIEW_WIDTH * 1080) / 2560));
   });
 
   it('falls back to 16:9 before the output has a size', () => {
-    expect(previewHeight(0, 0)).toBe(144);
+    expect(previewHeight(0, 0)).toBe(Math.round((PREVIEW_WIDTH * 9) / 16));
   });
 });
 

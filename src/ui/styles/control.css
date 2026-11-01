@@ -1,11 +1,63 @@
-/* ---------- controls ---------- */
+/*
+ * The control window is laid out like a desktop application, not a web page:
+ *  - the window never scrolls on a laptop: toolbar on top, status bar below, docks in between
+ *  - panels are docked and share one-pixel dividers instead of floating as rounded cards
+ *  - dense, flat controls; no hover lifts, no shadows, nothing animates but a switch
+ *  - the chrome cannot be selected or dragged (text fields can), the cursor stays an arrow
+ * A mouse gets 13 px text and 26 px controls; a touch screen gets 15 px and 44 px targets.
+ */
+
+html.is-app {
+  --control: 1.95rem;
+  font-size: 13px;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+@media (pointer: coarse) {
+  html.is-app {
+    --control: 2.95rem;
+    font-size: 15px;
+  }
+}
+
+html.is-app body {
+  height: 100%;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+#root {
+  height: 100%;
+}
 
 .app {
-  min-height: 100dvh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   font-size: 1rem;
 }
+
+input[type="text"],
+select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) transparent;
+}
+
+/* ---------- controls ---------- */
 
 button,
 select,
@@ -15,25 +67,28 @@ input[type="text"] {
   color: var(--text);
   background: var(--surface-2);
   border: 1px solid var(--edge);
-  border-radius: 8px;
-  padding: 0 14px;
-  min-height: 44px;
-  cursor: pointer;
+  border-radius: 4px;
+  padding: 0 0.75rem;
+  min-height: var(--control);
+  cursor: default;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 0.5rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 input[type="text"] {
   cursor: text;
   width: 100%;
   justify-content: flex-start;
+  background: var(--bg);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
 }
 
 select {
-  padding-right: 8px;
+  padding-right: 0.4rem;
 }
 
 button:hover:not(:disabled),
@@ -42,9 +97,14 @@ select:hover {
   background: var(--surface-3);
 }
 
+button:active:not(:disabled),
+.button:active {
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
 button:disabled {
   opacity: 0.45;
-  cursor: not-allowed;
 }
 
 button.primary {
@@ -66,54 +126,134 @@ button.primary kbd {
 }
 
 :focus-visible {
-  outline: 3px solid var(--accent-fg);
-  outline-offset: 2px;
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
-  min-height: 28px;
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
 }
 
 .hint {
   margin: 0;
   color: var(--text-dim);
-  font-size: 0.875rem;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .subtitle {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  letter-spacing: 0.08em;
+  margin: 0.2rem 0 0;
+  font-size: 0.77rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
 
-/* ---------- top bar ---------- */
+/* ---------- sliders: a thin groove, a filled part and a ringed thumb ---------- */
+
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: var(--control);
+  margin: 0;
+  background: transparent;
+  cursor: default;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill, 0%),
+    var(--surface-3) var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill, 0%),
+    var(--surface-3) var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--accent);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--accent);
+}
+
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-runnable-track,
+  input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -9px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ---------- toolbar ---------- */
 
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
-  padding: 10px 16px;
-  background: var(--surface);
+  gap: 0.4rem 0.9rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--surface-2);
   border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.topbar button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Installed as an app with the title bar folded into the toolbar: leave room for the buttons. */
+@media (display-mode: window-controls-overlay) {
+  .topbar {
+    padding-left: calc(env(titlebar-area-x, 0px) + 0.75rem);
+    padding-right: calc(
+      100vw -
+      env(titlebar-area-x, 0px) -
+      env(titlebar-area-width, 100vw) +
+      0.75rem
+    );
+    min-height: env(titlebar-area-height, 2.9rem);
+  }
 }
 
 .topbar__group {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.topbar__tempo {
-  gap: 14px;
+  gap: 0.5rem;
 }
 
 .topbar__live {
@@ -122,13 +262,13 @@ input[type="range"] {
 
 .brand {
   margin: 0;
-  font-size: 1.35rem;
-  letter-spacing: 0.02em;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .status {
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 0.5rem;
 }
 
 .status__action {
@@ -137,8 +277,8 @@ input[type="range"] {
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
 }
 
@@ -150,50 +290,59 @@ input[type="range"] {
   background: var(--warn);
 }
 
+/* The tempo readout sits in an inset display, like the LCD of a mixer or a deck. */
+.lcd {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  gap: 0.8rem;
+  min-height: var(--control);
+  padding: 0 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4);
+}
+
 .bpm {
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 1.45rem;
+  font-weight: 600;
   line-height: 1;
-  min-width: 6.4rem;
+  min-width: 5.4rem;
 }
 
 .bpm small {
-  font-size: 0.85rem;
+  font-family: inherit;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-dim);
 }
 
 .section-tag {
-  font-size: 0.875rem;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--edge);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-dim);
-  min-width: 6.2rem;
+  min-width: 4.4rem;
   text-align: center;
 }
 
 .section-tag--groove {
   color: var(--ok);
-  border-color: var(--ok);
 }
 
 .section-tag--build {
   color: var(--warn);
-  border-color: var(--warn);
 }
 
 .section-tag--drop {
   color: var(--accent-fg);
-  border-color: var(--accent-fg);
 }
 
 .live {
-  min-width: 8rem;
-  min-height: 48px;
+  min-width: 6.4rem;
   font-weight: 700;
-  font-size: 1.05rem;
 }
 
 .live[aria-pressed="true"] {
@@ -220,101 +369,113 @@ input[type="range"] {
 }
 
 .icon-button {
-  width: 44px;
+  width: var(--control);
   padding: 0;
-  font-size: 1.15rem;
   font-weight: 700;
 }
 
-/* ---------- workspace layout ---------- */
+/* ---------- docks ---------- */
 
 .workspace {
+  /* The containing block of the screen-reader-only helpers, so they scroll (and clip) with it. */
+  position: relative;
   flex: 1;
+  min-height: 0;
   display: grid;
+  gap: 1px;
+  background: var(--line);
   grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 12px;
-  padding: 12px 16px 28px;
-  width: 100%;
-  max-width: 96rem;
-  margin: 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-.area {
-  display: grid;
-  gap: 12px;
-  align-content: start;
+.dock {
   min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
 }
 
-.notice--wide {
-  grid-column: 1 / -1;
+/* A phone: one column, and the whole workspace scrolls. */
+@media (max-width: 759px) {
+  .workspace {
+    grid-auto-rows: min-content;
+  }
 }
 
-/* Tablet: scenes get their own column, everything else stacks on the other side. */
+/* A tablet: monitor and scenes on the left, rhythm above the inspector on the right. */
 @media (min-width: 760px) {
   .workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "preview scenes" "setup scenes";
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    overflow: hidden;
   }
 
-  .workspace > .notice--wide {
-    grid-area: auto;
+  .dock {
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
-  .area--preview {
+  .dock--center {
     grid-column: 1;
+    grid-row: 1 / span 2;
   }
 
-  .area--scenes {
+  .dock--left {
     grid-column: 2;
-    grid-row: span 2;
+    grid-row: 1;
   }
 
-  .area--setup {
-    grid-column: 1;
+  .dock--right {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
-/* Laptop: preview and signal | scenes and palette | rhythm and setup. */
+/* A laptop: rhythm and signal | monitor and scenes | inspector. */
 @media (min-width: 1180px) {
   .workspace {
-    grid-template-columns: minmax(18rem, 1fr) minmax(0, 1.5fr) minmax(18rem, 1fr);
+    grid-template-columns: 17.5rem minmax(0, 1fr) 19.5rem;
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .area--preview {
+  .dock--left {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  .area--scenes {
+  .dock--center {
     grid-column: 2;
-    grid-row: auto;
+    grid-row: 1;
   }
 
-  .area--setup {
+  .dock--right {
     grid-column: 3;
+    grid-row: 1;
   }
 }
 
 .welcome {
   grid-column: 1 / -1;
-  justify-self: center;
-  width: min(100%, 38rem);
-  margin-top: 6vh;
+  grid-row: 1 / -1;
+  background: var(--surface);
   display: grid;
-  gap: 14px;
+  align-content: center;
   justify-items: start;
+  gap: 0.9rem;
+  padding: 2rem max(1rem, calc(50% - 20rem));
 }
 
 .welcome h2 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
 }
 
 .welcome__cta {
-  min-height: 56px;
+  min-height: calc(var(--control) * 1.3);
   font-size: 1.1rem;
-  padding: 0 24px;
+  padding: 0 1.5rem;
 }
 
 .steps {
@@ -323,41 +484,137 @@ input[type="range"] {
   line-height: 1.8;
 }
 
-/* ---------- cards ---------- */
+.welcome,
+.welcome * {
+  user-select: text;
+  -webkit-user-select: text;
+}
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
+/* ---------- panels ---------- */
+
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+
+.panel:first-child {
+  border-top: 0;
+}
+
+.panel p {
+  margin: 0;
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: calc(var(--control) * 0.95);
+  padding: 0 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 0.77rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.panel__hint {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.panel__body {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
   min-width: 0;
 }
 
-.card p {
-  margin: 0;
+.panel--flush > .panel__body {
+  padding: 0;
+  gap: 0;
 }
 
-.card__header {
+.panel__strip {
+  padding: 0.25rem 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.panel--scenes {
+  border-top: 1px solid var(--line);
+}
+
+/* The monitor takes whatever height the window has left over. */
+.dock--center {
+  container-type: inline-size;
+}
+
+/* ...but never taller than its 16:9 picture needs (header and control strip included). */
+.panel--preview {
+  flex: 1 1 0;
+  min-height: 11rem;
+  max-height: calc(100cqw * 9 / 16 + var(--control) * 1.95 + 0.5rem + 2px);
+}
+
+.panel--preview > .panel__body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
 }
 
-.card__title {
-  margin: 0;
-  font-size: 0.8125rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-dim);
+.panel--signal {
+  flex: 1 1 0;
+  min-height: 11rem;
+}
+
+.panel--signal > .panel__body {
+  flex: 1;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+/* Foldable inspector sections. */
+.panel--fold > summary {
+  cursor: default;
+  list-style: none;
+}
+
+.panel--fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel--fold:not([open]) > summary {
+  border-bottom: 0;
+}
+
+.panel__chevron {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid var(--text-dim);
+  border-bottom: 1.5px solid var(--text-dim);
+  transform: rotate(-45deg);
+  margin-right: 0.1rem;
+}
+
+.panel--fold[open] > summary .panel__chevron {
+  transform: rotate(45deg);
 }
 
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.5rem;
   align-items: center;
 }
 
@@ -372,36 +629,47 @@ input[type="range"] {
 
 .field {
   display: grid;
-  gap: 6px;
-  font-size: 0.9375rem;
+  gap: 0;
 }
 
 .field__label {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .field output {
   color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
 }
 
-.field__hint {
-  color: var(--text-dim);
-  font-size: 0.875rem;
+/* A strip under the toolbar, like a document window's notice bar. */
+.banner {
+  flex: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--accent-fg);
+}
+
+.banner--warn {
+  border-left-color: var(--warn);
+}
+
+.banner button {
+  min-height: calc(var(--control) * 0.85);
 }
 
 .notice {
   margin: 0;
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--edge);
-  background: var(--surface);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
+  border-radius: 4px;
+  background: var(--surface-2);
 }
 
 .notice--warn {
@@ -413,11 +681,14 @@ input[type="range"] {
 .switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  font-size: 0.9375rem;
-  cursor: pointer;
+  gap: 0.5rem;
+  min-height: var(--control);
+  cursor: default;
   position: relative;
+}
+
+.panel__header .switch {
+  margin-left: auto;
 }
 
 .switch input {
@@ -426,14 +697,14 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   margin: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .switch__track {
   flex: none;
-  width: 44px;
-  height: 26px;
-  border-radius: 13px;
+  width: 2.1rem;
+  height: 1.15rem;
+  border-radius: 0.6rem;
   background: var(--surface-3);
   border: 1px solid var(--edge);
   position: relative;
@@ -442,13 +713,13 @@ input[type="range"] {
 .switch__track::after {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 0.14rem;
+  left: 0.14rem;
+  width: 0.73rem;
+  height: 0.73rem;
   border-radius: 50%;
   background: var(--text-dim);
-  transition: transform 0.12s;
+  transition: transform 0.1s;
 }
 
 .switch input:checked + .switch__track {
@@ -457,31 +728,43 @@ input[type="range"] {
 }
 
 .switch input:checked + .switch__track::after {
-  transform: translateX(18px);
+  transform: translateX(0.95rem);
   background: var(--accent-ink);
 }
 
 .switch input:focus-visible + .switch__track {
-  outline: 3px solid var(--accent-fg);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
 }
 
-/* ---------- preview ---------- */
+/* ---------- monitor ---------- */
 
 .preview {
   position: relative;
   background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  line-height: 0;
+  flex: 1;
+  min-height: 7rem;
+  line-height: 1.2;
+}
+
+@media (max-width: 759px) {
+  .preview {
+    flex: none;
+    aspect-ratio: 16 / 9;
+  }
+
+  .panel--preview,
+  .panel--signal {
+    flex: none;
+  }
 }
 
 .preview__canvas {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+  object-fit: contain;
 }
 
 .preview--offline .preview__canvas {
@@ -493,27 +776,21 @@ input[type="range"] {
   inset: 0;
   display: grid;
   place-items: center;
-  line-height: 1.2;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 4px #000;
 }
 
-.caption {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  align-items: baseline;
-  font-size: 0.9375rem;
-}
-
-.caption span {
-  color: var(--text-dim);
-}
-
-.caption__end {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
+.preview__osd {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+  opacity: 0.85;
 }
 
 /* ---------- scene pads and palettes ---------- */
@@ -527,8 +804,8 @@ input[type="range"] {
 
 .pads {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(8.2rem, 1fr));
+  gap: 6px;
 }
 
 .pad {
@@ -536,38 +813,41 @@ input[type="range"] {
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  min-height: 5rem;
-  padding: 10px 12px;
-  gap: 6px;
+  min-height: 3.6rem;
+  padding: 0.45rem 0.6rem;
+  gap: 0.4rem;
   text-align: left;
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 1.02rem;
 }
 
 .pad__key {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 0.4rem;
+  right: 0.4rem;
 }
 
 .pad__name {
-  padding-right: 1.6rem;
+  max-width: 100%;
+  padding-right: 1.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pad__energy {
   position: relative;
   align-self: stretch;
-  height: 6px;
-  border-radius: 3px;
+  height: 4px;
+  border-radius: 2px;
   background: var(--surface-3);
-  border: 1px solid var(--line);
 }
 
 .pad__energy i {
   position: absolute;
-  top: -1px;
-  bottom: -1px;
-  border-radius: 3px;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
   background: var(--text-dim);
 }
 
@@ -584,8 +864,7 @@ input[type="range"] {
 }
 
 .pad[aria-pressed="true"] .pad__energy {
-  background: rgb(0 0 0 / 0.2);
-  border-color: transparent;
+  background: rgb(0 0 0 / 0.25);
 }
 
 .pad[aria-pressed="true"] .pad__energy i {
@@ -594,45 +873,43 @@ input[type="range"] {
 
 .swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  gap: 6px;
 }
 
 .swatch {
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  padding: 8px;
-  font-size: 0.9rem;
+  gap: 0.3rem;
+  padding: 0.35rem 0.4rem;
 }
 
 .swatch__colors {
-  height: 14px;
-  border-radius: 4px;
+  height: 8px;
+  border-radius: 2px;
   border: 1px solid rgb(127 127 127 / 0.5);
 }
 
 .swatch[aria-pressed="true"] {
   border-color: var(--accent-fg);
-  box-shadow: 0 0 0 2px var(--accent-fg) inset;
+  box-shadow: 0 0 0 1px var(--accent-fg) inset;
   font-weight: 700;
 }
 
-/* ---------- meters ---------- */
+/* ---------- meters: segmented like the level meters of a mixer ---------- */
 
 .meter {
   display: grid;
-  grid-template-columns: 3.5rem 1fr;
-  gap: 10px;
+  grid-template-columns: 3rem 1fr;
+  gap: 0.6rem;
   align-items: center;
-  font-size: 0.875rem;
   color: var(--text-dim);
 }
 
 .meter__track {
-  height: 10px;
+  height: 8px;
   background: var(--surface-3);
-  border-radius: 5px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -647,26 +924,36 @@ input[type="range"] {
 .bars {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  height: 7.5rem;
+  gap: 5px;
+  min-height: 5rem;
 }
 
 .bar {
   display: grid;
   grid-template-rows: 1fr auto;
-  gap: 6px;
+  gap: 0.3rem;
   min-width: 0;
   text-align: center;
   font-size: 0.75rem;
+  white-space: nowrap;
   color: var(--text-dim);
 }
 
 .bar__track {
+  position: relative;
   background: var(--surface-3);
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
   display: flex;
   align-items: flex-end;
+}
+
+.bar__track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to top, transparent 0 4px, var(--surface) 4px 5px);
 }
 
 .bar__fill {
@@ -681,13 +968,12 @@ input[type="range"] {
 .led-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 0.45rem;
 }
 
 .led {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--surface-3);
   border: 1px solid var(--edge);
@@ -696,63 +982,19 @@ input[type="range"] {
 .led--on {
   background: var(--ok);
   border-color: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
+  box-shadow: 0 0 6px var(--ok);
 }
 
 .tap {
-  min-width: 8rem;
-  min-height: 64px;
-  font-size: 1.2rem;
+  min-width: 6rem;
+  min-height: calc(var(--control) * 1.7);
+  font-size: 1.15rem;
   font-weight: 700;
 }
 
 .tap:active {
   background: var(--accent);
   color: var(--accent-ink);
-}
-
-/* ---------- disclosure ---------- */
-
-.disclosure {
-  padding: 0;
-  gap: 0;
-}
-
-.disclosure__summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 52px;
-  padding: 0 16px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.disclosure__summary::-webkit-details-marker {
-  display: none;
-}
-
-.disclosure__summary::after {
-  content: "+";
-  font-size: 1.3rem;
-  color: var(--text-dim);
-  margin-left: auto;
-}
-
-.disclosure[open] > .disclosure__summary::after {
-  content: "–";
-}
-
-.disclosure__hint {
-  color: var(--text-dim);
-  font-size: 0.875rem;
-}
-
-.disclosure__body {
-  display: grid;
-  gap: 12px;
-  padding: 4px 16px 16px;
 }
 
 .file-button {
@@ -764,46 +1006,81 @@ input[type="range"] {
   position: absolute;
   inset: 0;
   opacity: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .file-button:focus-within {
-  outline: 3px solid var(--accent-fg);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
 }
 
-/* ---------- dialogs ---------- */
+/* ---------- status bar ---------- */
+
+.statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 1.75rem;
+  padding: 0 0.75rem;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.statusbar__fill {
+  flex: 1;
+}
+
+@media (max-width: 559px) {
+  .statusbar > :nth-child(n + 5):not(:last-child) {
+    display: none;
+  }
+}
+
+/* ---------- dialogs: a sheet with a title strip ---------- */
 
 .dialog {
   border: 1px solid var(--edge);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 0;
   background: var(--surface);
   color: var(--text);
-  width: min(32rem, calc(100vw - 24px));
+  width: min(30rem, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.65);
+  background: rgb(0 0 0 / 0.55);
 }
 
 .dialog__panel {
   display: grid;
-  gap: 14px;
-  padding: 18px 20px 20px;
+  gap: 0.9rem;
+  padding: 0 0 0.9rem;
+}
+
+.dialog__panel > :not(.dialog__header) {
+  margin-inline: 0.9rem;
 }
 
 .dialog__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
 }
 
 .dialog__header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .dialog__footer {
@@ -813,7 +1090,7 @@ input[type="range"] {
 
 .choice {
   display: grid;
-  gap: 10px;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -822,14 +1099,14 @@ input[type="range"] {
 
 .choice legend {
   padding: 0;
-  margin-bottom: 8px;
+  margin-bottom: 0.4rem;
   font-weight: 600;
 }
 
 .choice__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .choice__option,
@@ -839,13 +1116,13 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 14px;
+  min-height: var(--control);
+  min-width: var(--control);
+  padding: 0 0.75rem;
   border: 1px solid var(--edge);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--surface-2);
-  cursor: pointer;
+  cursor: default;
 }
 
 .choice__option input,
@@ -854,22 +1131,22 @@ input[type="range"] {
   opacity: 0;
   inset: 0;
   margin: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .choice__option:has(input:checked),
 .accent-option:has(input:checked),
 .accent-custom--active {
   border-color: var(--accent-fg);
-  box-shadow: 0 0 0 2px var(--accent-fg) inset;
+  box-shadow: 0 0 0 1px var(--accent-fg) inset;
   font-weight: 700;
 }
 
 .choice__option:has(input:focus-visible),
 .accent-option:has(input:focus-visible),
 .accent-custom:has(input:focus-visible) {
-  outline: 3px solid var(--accent-fg);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
 }
 
 .accent-option {
@@ -877,38 +1154,38 @@ input[type="range"] {
 }
 
 .accent-option__chip {
-  width: 26px;
-  height: 26px;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 50%;
   border: 2px solid var(--surface);
   outline: 1px solid var(--edge);
 }
 
 .accent-custom {
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .accent-custom input {
-  width: 32px;
-  height: 28px;
+  width: 1.8rem;
+  height: 1.4rem;
   padding: 0;
   border: 0;
   background: none;
-  cursor: pointer;
+  cursor: default;
 }
 
 .shortcuts dl {
   margin: 0;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .shortcuts__row {
   display: grid;
   grid-template-columns: 7rem 1fr;
-  gap: 12px;
+  gap: 0.75rem;
   align-items: center;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .shortcuts__row dt {
@@ -929,8 +1206,8 @@ input[type="range"] {
 
 @media (max-width: 559px) {
   .topbar {
-    padding: 8px 12px;
-    gap: 8px 12px;
+    padding: 0.3rem 0.6rem;
+    gap: 0.4rem 0.6rem;
   }
 
   .topbar__live {
@@ -948,7 +1225,7 @@ input[type="range"] {
     margin-left: auto;
   }
 
-  .topbar__tempo {
+  .lcd {
     order: 2;
   }
 
@@ -956,25 +1233,30 @@ input[type="range"] {
     order: 3;
   }
 
-  .workspace {
-    padding: 10px 12px 24px;
-  }
-
   .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .welcome h2 {
-    font-size: 1.45rem;
+    font-size: 1.35rem;
   }
 }
 
-/* ---------- accessibility ---------- */
+/* ---------- touch and accessibility ---------- */
 
-:root[data-theme="contrast"] .card,
-:root[data-theme="contrast"] .topbar,
-:root[data-theme="contrast"] .preview {
-  border-width: 2px;
+/* No keyboard on a touch screen: key hints would only add noise. */
+@media (hover: none) {
+  button kbd,
+  label kbd,
+  .pad__key {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .pad {
+    min-height: 4.6rem;
+  }
 }
 
 :root[data-theme="contrast"] button,
@@ -982,16 +1264,6 @@ input[type="range"] {
 :root[data-theme="contrast"] .button,
 :root[data-theme="contrast"] input[type="text"] {
   border-width: 2px;
-}
-
-@media (pointer: coarse) {
-  .pad {
-    min-height: 5.5rem;
-  }
-
-  input[type="range"] {
-    min-height: 36px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

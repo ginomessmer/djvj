@@ -9,7 +9,7 @@ const MODE_LABELS: Record<OverlayMode, string> = {
   reveal: 'Big, after each drop',
 };
 
-interface OverlayCardProps {
+interface OverlayPanelProps {
   show: ShowState;
   overlay: ShowSnapshot['overlay'];
   onPatch: (patch: ShowPatch) => void;
@@ -17,13 +17,13 @@ interface OverlayCardProps {
   onRemoveLogo: () => void;
 }
 
-export function OverlayCard({
+export function OverlayPanel({
   show,
   overlay,
   onPatch,
   onLogoFile,
   onRemoveLogo,
-}: OverlayCardProps) {
+}: OverlayPanelProps) {
   return (
     <Disclosure title="Name and logo" summary={MODE_LABELS[show.overlayMode]}>
       <label class="field">

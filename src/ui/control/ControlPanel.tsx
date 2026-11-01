@@ -3,14 +3,15 @@ import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch } from '@/domain/show/show-state';
 import type { Preferences } from '@/domain/ui/preferences';
 import { AppearanceDialog } from './AppearanceDialog';
-import { AudioInputCard } from './AudioInputCard';
-import { OutputCard } from './OutputCard';
-import { OverlayCard } from './OverlayCard';
-import { PreviewCard } from './PreviewCard';
-import { RhythmCard } from './RhythmCard';
-import { ScenesCard } from './ScenesCard';
+import { AudioInputPanel } from './AudioInputPanel';
+import { OutputPanel } from './OutputPanel';
+import { OverlayPanel } from './OverlayPanel';
+import { PreviewPanel } from './PreviewPanel';
+import { RhythmPanel } from './RhythmPanel';
+import { ScenesPanel } from './ScenesPanel';
 import { ShortcutsDialog } from './ShortcutsDialog';
-import { SignalCard } from './SignalCard';
+import { SignalPanel } from './SignalPanel';
+import { StatusBar } from './StatusBar';
 import { TopBar } from './TopBar';
 import { Welcome } from './Welcome';
 
@@ -41,8 +42,10 @@ interface ControlPanelProps extends ControlActions {
 }
 
 /**
- * Laptop first: three columns (preview and signal | scenes and palette | rhythm and setup).
- * A tablet gets two columns, a phone one. Set-once settings sit in collapsed cards at the end.
+ * A desktop-app window: toolbar on top, status bar below, and between them three docks that share
+ * hairline dividers and scroll on their own (the window itself never does on a laptop):
+ * rhythm and signal | monitor, scenes and palette | inspector with the set-once settings.
+ * A tablet gets two columns, a phone one column that scrolls.
  */
 export function ControlPanel({
   snapshot,
@@ -72,66 +75,66 @@ export function ControlPanel({
         onOpenShortcuts={() => onDialog('shortcuts')}
       />
 
+      {snapshot && !connected && (
+        <p class="banner banner--warn" role="alert">
+          The output window closed.
+          <button type="button" onClick={onOpenOutput}>
+            Open it again
+          </button>
+        </p>
+      )}
+      {audioIdle && (
+        <p class="banner" role="status">
+          Audio is not running. Click once inside the output window to allow audio input, or use the
+          demo signal.
+          <button type="button" onClick={() => onPatch({ demo: true })}>
+            Use demo signal
+          </button>
+        </p>
+      )}
+
       <main class="workspace">
         {!snapshot && <Welcome blocked={launchBlocked} onOpenOutput={onOpenOutput} />}
 
         {snapshot && (
           <>
-            {!connected && (
-              <p class="notice notice--warn notice--wide" role="alert">
-                The output window closed.{' '}
-                <button type="button" onClick={onOpenOutput}>
-                  Open it again
-                </button>
-              </p>
-            )}
-            {audioIdle && (
-              <p class="notice notice--wide" role="status">
-                Audio is not running. Click once inside the output window to allow audio input, or
-                use the demo signal.{' '}
-                <button type="button" onClick={() => onPatch({ demo: true })}>
-                  Use demo signal
-                </button>
-              </p>
-            )}
-
-            <div class="area area--preview">
-              <PreviewCard
+            <div class="dock dock--center">
+              <PreviewPanel
                 snapshot={snapshot}
                 connected={connected}
                 subscribeFrames={subscribeFrames}
                 onPatch={onPatch}
               />
-              <SignalCard signal={snapshot.signal} />
-            </div>
-            <div class="area area--scenes">
-              <ScenesCard
+              <ScenesPanel
                 show={snapshot.show}
                 shownSceneId={snapshot.shownSceneId}
                 onPatch={onPatch}
               />
             </div>
-            <div class="area area--setup">
-              <RhythmCard
+            <div class="dock dock--left">
+              <RhythmPanel
                 rhythm={snapshot.rhythm}
                 show={snapshot.show}
                 onPatch={onPatch}
                 onTap={actions.onTap}
                 onClearTap={actions.onClearTap}
               />
-              <AudioInputCard
+              <SignalPanel signal={snapshot.signal} />
+            </div>
+            <div class="dock dock--right">
+              <AudioInputPanel
                 audio={snapshot.audio}
                 show={snapshot.show}
                 onPatch={onPatch}
                 onRefreshDevices={actions.onRefreshDevices}
               />
-              <OutputCard
+              <OutputPanel
                 show={snapshot.show}
                 performance={snapshot.performance}
                 safety={snapshot.safety}
                 onPatch={onPatch}
               />
-              <OverlayCard
+              <OverlayPanel
                 show={snapshot.show}
                 overlay={snapshot.overlay}
                 onPatch={onPatch}
@@ -142,6 +145,8 @@ export function ControlPanel({
           </>
         )}
       </main>
+
+      <StatusBar connected={connected} snapshot={snapshot} />
 
       <AppearanceDialog
         open={dialog === 'appearance'}

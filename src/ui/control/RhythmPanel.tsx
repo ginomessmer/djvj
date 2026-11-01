@@ -1,10 +1,10 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
 import { Meter } from '../components/Meter';
+import { Panel } from '../components/Panel';
 import { Slider } from '../components/Slider';
 
-interface RhythmCardProps {
+interface RhythmPanelProps {
   rhythm: ShowSnapshot['rhythm'];
   show: ShowState;
   onPatch: (patch: ShowPatch) => void;
@@ -12,11 +12,11 @@ interface RhythmCardProps {
   onClearTap: () => void;
 }
 
-export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmCardProps) {
+export function RhythmPanel({ rhythm, show, onPatch, onTap, onClearTap }: RhythmPanelProps) {
   const tapped = rhythm.source === 'tap';
 
   return (
-    <Card title="Rhythm" class="card--rhythm">
+    <Panel title="Rhythm" class="panel--rhythm">
       <Meter label="Lock" value={rhythm.confidence} />
       <div class="row">
         {/* A press counts at once (pointerdown); `detail === 0` is a click from the keyboard. */}
@@ -34,10 +34,9 @@ export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmC
             Back to auto
           </button>
         ) : (
-          <span class="hint">Not locking? Tap four times on the kick.</span>
+          <span class="hint">Tap four times on the kick</span>
         )}
       </div>
-      {tapped && <p class="hint">Tapped tempo is held until you go back to auto.</p>}
       <Slider
         label="Beat offset"
         value={show.beatOffsetMs}
@@ -48,6 +47,6 @@ export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmC
         hint="Visuals late on the big screen? Move right until the pulse sits on the kick."
         onInput={(beatOffsetMs) => onPatch({ beatOffsetMs })}
       />
-    </Card>
+    </Panel>
   );
 }

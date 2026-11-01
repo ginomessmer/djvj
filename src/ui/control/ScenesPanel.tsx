@@ -3,22 +3,22 @@ import type { SceneId } from '@/domain/show/scenes';
 import { SELECTABLE_SCENES } from '@/domain/show/scenes';
 import { lockPalette, lockScene, sceneKey, shortcutPatch } from '@/domain/show/shortcuts';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
+import { Panel } from '../components/Panel';
 import { Toggle } from '../components/Toggle';
 
-interface ScenesCardProps {
+interface ScenesPanelProps {
   show: ShowState;
   shownSceneId: SceneId;
   onPatch: (patch: ShowPatch) => void;
 }
 
-export function ScenesCard({ show, shownSceneId, onPatch }: ScenesCardProps) {
+export function ScenesPanel({ show, shownSceneId, onPatch }: ScenesPanelProps) {
   const nextPalette = shortcutPatch('c', show);
 
   return (
-    <Card
+    <Panel
       title="Scenes"
-      class="card--scenes"
+      class="panel--scenes"
       actions={
         <Toggle
           label="Auto-rotate"
@@ -28,7 +28,14 @@ export function ScenesCard({ show, shownSceneId, onPatch }: ScenesCardProps) {
         />
       }
     >
-      <fieldset class="group pads">
+      <fieldset
+        class="group pads"
+        title={
+          show.auto
+            ? 'The director picks scenes from the music. Press a pad to lock one. The bar under each name shows how calm to intense the scene is.'
+            : 'Scene locked. Switch Auto-rotate back on to let the music decide.'
+        }
+      >
         <legend class="sr-only">Scenes</legend>
         {SELECTABLE_SCENES.map((scene) => {
           const key = sceneKey(scene.id);
@@ -55,13 +62,6 @@ export function ScenesCard({ show, shownSceneId, onPatch }: ScenesCardProps) {
           );
         })}
       </fieldset>
-      <p class="hint">
-        {show.auto
-          ? 'The director picks scenes from the music. Tap a pad to lock one.'
-          : 'Scene locked. Switch Auto-rotate back on to let the music decide.'}{' '}
-        The bar under each name shows how calm to intense the scene is.
-      </p>
-
       <h3 class="subtitle">Palette</h3>
       <fieldset class="group swatches">
         <legend class="sr-only">Palette</legend>
@@ -97,6 +97,6 @@ export function ScenesCard({ show, shownSceneId, onPatch }: ScenesCardProps) {
           Next palette <kbd>C</kbd>
         </button>
       </div>
-    </Card>
+    </Panel>
   );
 }

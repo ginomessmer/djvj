@@ -7,7 +7,7 @@ export interface PreviewFrame {
 }
 
 /** Width of the preview. The height follows the output's aspect ratio. */
-export const PREVIEW_WIDTH = 256;
+export const PREVIEW_WIDTH = 384;
 /** The output only sends frames this often, and only while a control window is watching. */
 export const PREVIEW_INTERVAL_SEC = 0.1;
 /** A control window must ask again within this time, or the output stops producing frames. */

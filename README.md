@@ -18,6 +18,8 @@ npm run dev          # http://localhost:5173
 3. Pick the audio input, scenes and palette in the control view.
 4. No audio yet? Press **`M`** for a simulated 128 BPM track: a groove, then every 60 s a breakdown that builds into a drop.
 
+For a window without browser chrome, install it from Chrome (address bar → *Install djvj*). The control view then behaves like a desktop app.
+
 There is one `index.html`: `/` is the control view and `/?view=output` the output view. Reloading the control view never reloads a running output window.
 
 For a gig, build once and serve the static files locally (no internet needed):

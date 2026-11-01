@@ -4,10 +4,10 @@ import type { ShowSnapshot } from '@/domain/remote/protocol';
 import { findPalette } from '@/domain/show/palettes';
 import { SCENES } from '@/domain/show/scenes';
 import type { ShowPatch } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
+import { Panel } from '../components/Panel';
 import { Slider } from '../components/Slider';
 
-interface PreviewCardProps {
+interface PreviewPanelProps {
   snapshot: ShowSnapshot;
   connected: boolean;
   subscribeFrames: (listener: (frame: PreviewFrame) => void) => () => void;
@@ -16,7 +16,7 @@ interface PreviewCardProps {
 
 /** Paints preview frames straight onto a canvas: they come ~10 times a second. */
 function useFrames(
-  subscribe: PreviewCardProps['subscribeFrames'],
+  subscribe: PreviewPanelProps['subscribeFrames'],
   canvas: { current: HTMLCanvasElement | null },
 ) {
   useEffect(
@@ -36,45 +36,41 @@ function useFrames(
   );
 }
 
-export function PreviewCard({ snapshot, connected, subscribeFrames, onPatch }: PreviewCardProps) {
+export function PreviewPanel({ snapshot, connected, subscribeFrames, onPatch }: PreviewPanelProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useFrames(subscribeFrames, canvas);
 
-  const { show, performance, shownSceneId } = snapshot;
+  const { show, shownSceneId } = snapshot;
   const scene = SCENES.find((info) => info.id === shownSceneId);
-  const [width, height] = performance.resolution;
 
   return (
-    <Card title="Preview" class="card--preview">
+    <Panel title="Monitor" class="panel--preview panel--flush">
       <div class={connected ? 'preview' : 'preview preview--offline'}>
         <canvas
           ref={canvas}
           class="preview__canvas"
-          width="256"
-          height="144"
+          width="384"
+          height="216"
           role="img"
           aria-label="Live copy of the output screen"
         />
         {!connected && <span class="preview__note">Output window closed</span>}
         {show.blackout && connected && <span class="preview__note">Blackout</span>}
-      </div>
-      <p class="caption">
-        <strong>{scene?.name ?? shownSceneId}</strong>
-        <span>{show.auto ? 'auto' : 'locked'}</span>
-        <span>{findPalette(show.paletteId).name}</span>
-        <span class="caption__end">
-          {performance.fps.toFixed(0)} fps · {width}×{height}
+        <span class="preview__osd" aria-hidden="true">
+          {scene?.name ?? shownSceneId} · {findPalette(show.paletteId).name}
         </span>
-      </p>
-      <Slider
-        label="Brightness"
-        value={show.intensity}
-        min={0}
-        max={1}
-        step={0.01}
-        format={(value) => `${Math.round(value * 100)} %`}
-        onInput={(intensity) => onPatch({ intensity })}
-      />
-    </Card>
+      </div>
+      <div class="panel__strip">
+        <Slider
+          label="Brightness"
+          value={show.intensity}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(value) => `${Math.round(value * 100)} %`}
+          onInput={(intensity) => onPatch({ intensity })}
+        />
+      </div>
+    </Panel>
   );
 }

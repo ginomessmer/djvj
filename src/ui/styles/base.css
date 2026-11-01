@@ -15,16 +15,16 @@ body {
 kbd {
   /* Sans, not mono: a monospace O looks like a 0 on a key cap. */
   font:
-    700 0.78rem ui-sans-serif,
+    600 0.78rem ui-sans-serif,
     system-ui,
     -apple-system,
     "Segoe UI",
     sans-serif;
-  color: var(--text);
+  color: var(--text-dim);
   background: var(--surface-3);
   border: 1px solid var(--edge);
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: 3px;
+  padding: 0 5px;
 }
 
 .sr-only {

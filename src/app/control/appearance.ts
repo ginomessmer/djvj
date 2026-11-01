@@ -16,4 +16,7 @@ export function applyPreferences({ theme, accent }: Preferences): void {
   root.style.setProperty('--accent', accent);
   root.style.setProperty('--accent-ink', inkFor(accent));
   root.style.setProperty('--accent-fg', ensureContrast(accent, surface, ACCENT_TEXT_CONTRAST));
+  // The title bar of an installed app and the browser's toolbar on a phone follow the theme.
+  const toolbar = getComputedStyle(root).getPropertyValue('--surface-2').trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', toolbar);
 }

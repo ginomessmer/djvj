@@ -4,7 +4,7 @@ import { Disclosure } from '../components/Disclosure';
 import { Slider } from '../components/Slider';
 import { Toggle } from '../components/Toggle';
 
-interface AudioInputCardProps {
+interface AudioInputPanelProps {
   audio: ShowSnapshot['audio'];
   show: ShowState;
   onPatch: (patch: ShowPatch) => void;
@@ -17,9 +17,10 @@ function statusText({ status, error }: ShowSnapshot['audio']): string {
   return 'Not started: click the output window once to allow audio.';
 }
 
-export function AudioInputCard({ audio, show, onPatch, onRefreshDevices }: AudioInputCardProps) {
+export function AudioInputPanel({ audio, show, onPatch, onRefreshDevices }: AudioInputPanelProps) {
   return (
     <Disclosure
+      defaultOpen
       title="Audio input"
       summary={audio.status === 'running' ? 'listening' : 'not started'}
     >

@@ -5,14 +5,14 @@ import { Led } from '../components/Led';
 import { Slider } from '../components/Slider';
 import { Toggle } from '../components/Toggle';
 
-interface OutputCardProps {
+interface OutputPanelProps {
   show: ShowState;
   performance: ShowSnapshot['performance'];
   safety: ShowSnapshot['safety'];
   onPatch: (patch: ShowPatch) => void;
 }
 
-export function OutputCard({ show, performance, safety, onPatch }: OutputCardProps) {
+export function OutputPanel({ show, performance, safety, onPatch }: OutputPanelProps) {
   const [width, height] = performance.resolution;
   const adapting = safety.resolutionScale < 1;
 
