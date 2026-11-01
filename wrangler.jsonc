@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "djvj",
+  "compatibility_date": "2026-11-01",
+  // A static site: the Vite build output, served as Workers static assets.
+  "assets": { "directory": "./dist" },
+  // Required by `wrangler preview` (Workers Builds preview deploys); empty = same settings as production.
+  "previews": {}
+}
