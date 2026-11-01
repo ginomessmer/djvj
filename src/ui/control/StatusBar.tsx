@@ -6,6 +6,8 @@ import { Led } from '../components/Led';
 interface StatusBarProps {
   connected: boolean;
   snapshot: ShowSnapshot | null;
+  /** What the control under the pointer (or with focus) does. */
+  hint: string | null;
 }
 
 function audioText({ audio, show }: ShowSnapshot): string {
@@ -16,7 +18,7 @@ function audioText({ audio, show }: ShowSnapshot): string {
 }
 
 /** The window's footer, like the one in any desktop app: the facts that are never in the way. */
-export function StatusBar({ connected, snapshot }: StatusBarProps) {
+export function StatusBar({ connected, snapshot, hint }: StatusBarProps) {
   if (!snapshot) {
     return (
       <footer class="statusbar">
@@ -33,7 +35,12 @@ export function StatusBar({ connected, snapshot }: StatusBarProps) {
       <Led on={connected} label={connected ? 'Output connected' : 'Output closed'} />
       <span>{audioText(snapshot)}</span>
       <span class="statusbar__num">{signal.loudnessDb.toFixed(0)} dBFS</span>
-      <span class="statusbar__fill" />
+      <span
+        class={hint ? 'statusbar__hint statusbar__hint--on' : 'statusbar__hint'}
+        aria-hidden="true"
+      >
+        {hint ?? 'Hover a control to see what it does'}
+      </span>
       <span>
         {scene?.name ?? shownSceneId} · {show.auto ? 'auto' : 'locked'}
       </span>

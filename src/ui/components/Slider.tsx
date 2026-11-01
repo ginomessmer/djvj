@@ -1,4 +1,5 @@
-import { useId, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
+import { hint as hintProps } from './hint';
 
 interface SliderProps {
   label: string;
@@ -18,13 +19,12 @@ interface SliderProps {
  */
 export function Slider({ label, value, min, max, step, format, hint, onInput }: SliderProps) {
   const [dragValue, setDragValue] = useState<number | null>(null);
-  const hintId = useId();
   const shown = dragValue ?? value;
   const text = format?.(shown);
   const fill = max > min ? ((shown - min) / (max - min)) * 100 : 0;
 
   return (
-    <label class="field" title={hint}>
+    <label class="field" {...(hint ? hintProps(hint) : {})}>
       <span class="field__label">
         {label}
         {text && <output>{text}</output>}
@@ -37,7 +37,6 @@ export function Slider({ label, value, min, max, step, format, hint, onInput }: 
         value={shown}
         style={{ '--fill': `${fill.toFixed(1)}%` }}
         aria-valuetext={text}
-        aria-describedby={hint ? hintId : undefined}
         onInput={(event) => {
           const next = Number(event.currentTarget.value);
           setDragValue(next);
@@ -45,11 +44,6 @@ export function Slider({ label, value, min, max, step, format, hint, onInput }: 
         }}
         onChange={() => setDragValue(null)}
       />
-      {hint && (
-        <span class="sr-only" id={hintId}>
-          {hint}
-        </span>
-      )}
     </label>
   );
 }

@@ -1,5 +1,6 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
+import { hint } from '../components/hint';
 import { Led } from '../components/Led';
 import { isTempoKnown, SECTION_LABELS } from './rhythm-display';
 
@@ -43,7 +44,7 @@ export function TopBar({
           class="status"
           onClick={onOpenOutput}
           aria-keyshortcuts="O"
-          title="Show the output window (O)"
+          {...hint('Show the output window (O)')}
         >
           <span class={connected ? 'dot dot--ok' : 'dot dot--warn'} aria-hidden="true" />
           <span role="status">{connected ? 'Output live' : 'No output window'}</span>
@@ -70,7 +71,7 @@ export function TopBar({
           class="live live--blackout"
           aria-pressed={show?.blackout ?? false}
           aria-keyshortcuts="B"
-          title="Fade the screen to black (B)"
+          {...hint('Fade the screen to black (B)')}
           disabled={!show}
           onClick={() => show && onPatch({ blackout: !show.blackout })}
         >
@@ -81,7 +82,7 @@ export function TopBar({
           class="live live--panic"
           aria-pressed={show?.panic ?? false}
           aria-keyshortcuts="P"
-          title="Panic: calm, dark, safe visuals right now (P)"
+          {...hint('Panic: calm, dark, safe visuals right now (P)')}
           disabled={!show}
           onClick={() => show && onPatch({ panic: !show.panic })}
         >
@@ -93,7 +94,7 @@ export function TopBar({
         <button
           type="button"
           class="icon-button"
-          title="Appearance: theme and accent colour"
+          {...hint('Appearance: theme and accent colour')}
           onClick={onOpenAppearance}
         >
           <ThemeIcon />
@@ -103,7 +104,7 @@ export function TopBar({
           type="button"
           class="icon-button"
           onClick={onOpenShortcuts}
-          title="Keyboard shortcuts (?)"
+          {...hint('Keyboard shortcuts (?)')}
           aria-keyshortcuts="Shift+?"
         >
           <span aria-hidden="true">?</span>

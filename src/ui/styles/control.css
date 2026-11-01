@@ -1,15 +1,15 @@
 /*
  * The control window is laid out like a desktop application, not a web page:
  *  - the window never scrolls on a laptop: toolbar on top, status bar below, docks in between
- *  - panels are docked and share one-pixel dividers instead of floating as rounded cards
+ *  - panels are soft grouped surfaces on a darker backdrop, never a page of floating cards
  *  - dense, flat controls; no hover lifts, no shadows, nothing animates but a switch
  *  - the chrome cannot be selected or dragged (text fields can), the cursor stays an arrow
- * A mouse gets 13 px text and 26 px controls; a touch screen gets 15 px and 44 px targets.
+ * A mouse gets 14 px text and 34 px controls with generous gaps; a touch screen gets 15 px and 44 px targets.
  */
 
 html.is-app {
-  --control: 1.95rem;
-  font-size: 13px;
+  --control: 2.45rem;
+  font-size: 14px;
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
@@ -223,8 +223,8 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem 0.9rem;
-  padding: 0.35rem 0.75rem;
+  gap: 0.4rem 1rem;
+  padding: 0.5rem 1rem;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   -webkit-app-region: drag;
@@ -256,8 +256,14 @@ input[type="range"]::-moz-range-thumb {
   gap: 0.5rem;
 }
 
+.topbar__tools {
+  margin-left: 0.9rem;
+  gap: 0.6rem;
+}
+
 .topbar__live {
   margin-left: auto;
+  gap: 1.3rem;
 }
 
 .brand {
@@ -341,7 +347,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .live {
-  min-width: 6.4rem;
+  min-width: 7rem;
+  min-height: calc(var(--control) * 1.1);
   font-weight: 700;
 }
 
@@ -382,8 +389,9 @@ input[type="range"]::-moz-range-thumb {
   flex: 1;
   min-height: 0;
   display: grid;
-  gap: 1px;
-  background: var(--line);
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
   grid-template-columns: minmax(0, 1fr);
   overflow-x: hidden;
   overflow-y: auto;
@@ -392,9 +400,9 @@ input[type="range"]::-moz-range-thumb {
 .dock {
   min-width: 0;
   min-height: 0;
-  background: var(--surface);
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
 /* A phone: one column, and the whole workspace scrolls. */
@@ -408,7 +416,7 @@ input[type="range"]::-moz-range-thumb {
 @media (min-width: 760px) {
   .workspace {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     overflow: hidden;
   }
 
@@ -436,7 +444,7 @@ input[type="range"]::-moz-range-thumb {
 /* A laptop: rhythm and signal | monitor and scenes | inspector. */
 @media (min-width: 1180px) {
   .workspace {
-    grid-template-columns: 17.5rem minmax(0, 1fr) 19.5rem;
+    grid-template-columns: 19rem minmax(0, 1fr) 19.5rem;
     grid-template-rows: minmax(0, 1fr);
   }
 
@@ -497,11 +505,10 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-top: 1px solid var(--line);
-}
-
-.panel:first-child {
-  border-top: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .panel p {
@@ -511,9 +518,9 @@ input[type="range"]::-moz-range-thumb {
 .panel__header {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  min-height: calc(var(--control) * 0.95);
-  padding: 0 0.75rem;
+  gap: 0.75rem;
+  min-height: 2.4rem;
+  padding: 0 1rem;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
 }
@@ -536,8 +543,8 @@ input[type="range"]::-moz-range-thumb {
 .panel__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.65rem;
-  padding: 0.7rem 0.75rem;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
   min-width: 0;
 }
 
@@ -547,11 +554,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .panel__strip {
-  padding: 0.25rem 0.75rem;
-  border-top: 1px solid var(--line);
-}
-
-.panel--scenes {
+  padding: 0.35rem 1rem;
   border-top: 1px solid var(--line);
 }
 
@@ -563,7 +566,8 @@ input[type="range"]::-moz-range-thumb {
 /* ...but never taller than its 16:9 picture needs (header and control strip included). */
 .panel--preview {
   flex: 1 1 0;
-  min-height: 11rem;
+  /* Header, a readable picture and the brightness strip: below this the dock scrolls instead. */
+  min-height: 17rem;
   max-height: calc(100cqw * 9 / 16 + var(--control) * 1.95 + 0.5rem + 2px);
 }
 
@@ -574,14 +578,18 @@ input[type="range"]::-moz-range-thumb {
   flex: 1;
 }
 
-.panel--signal {
-  flex: 1 1 0;
-  min-height: 11rem;
+/* One row of low meters: enough to see that sound arrives, not a block that fills the column. */
+
+.panel__leds {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  white-space: nowrap;
 }
 
-.panel--signal > .panel__body {
-  flex: 1;
-  grid-template-rows: minmax(0, 1fr) auto;
+.panel__leds .panel__hint {
+  margin-left: 0;
 }
 
 /* Foldable inspector sections. */
@@ -614,7 +622,7 @@ input[type="range"]::-moz-range-thumb {
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -753,8 +761,7 @@ input[type="range"]::-moz-range-thumb {
     aspect-ratio: 16 / 9;
   }
 
-  .panel--preview,
-  .panel--signal {
+  .panel--preview {
     flex: none;
   }
 }
@@ -804,8 +811,14 @@ input[type="range"]::-moz-range-thumb {
 
 .pads {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.2rem, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(7.6rem, 1fr));
+  gap: 10px;
+}
+
+@container (min-width: 40rem) {
+  .pads {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .pad {
@@ -813,23 +826,33 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  min-height: 3.6rem;
-  padding: 0.45rem 0.6rem;
-  gap: 0.4rem;
+  min-height: 5.7rem;
+  padding: 0.8rem 0.85rem 0.7rem;
+  gap: 0.5rem;
   text-align: left;
   font-weight: 600;
-  font-size: 1.02rem;
+  font-size: 1.05rem;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
+.pad::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--tint, var(--surface-3));
+  opacity: 0.7;
+}
 .pad__key {
   position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
+  top: 0.75rem;
+  right: 0.6rem;
 }
 
 .pad__name {
   max-width: 100%;
-  padding-right: 1.4rem;
+  margin-top: 0.9rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -855,6 +878,14 @@ input[type="range"]::-moz-range-thumb {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
+  /* The scene that is on air: a ring that reads from across a dark room. */
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent-fg);
+}
+
+.pad[aria-pressed="true"]::before {
+  opacity: 0;
 }
 
 .pad[aria-pressed="true"] kbd {
@@ -873,15 +904,16 @@ input[type="range"]::-moz-range-thumb {
 
 .swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+  gap: 10px;
 }
 
 .swatch {
   flex-direction: column;
   align-items: stretch;
-  gap: 0.3rem;
-  padding: 0.35rem 0.4rem;
+  gap: 0.4rem;
+  min-height: 3.3rem;
+  padding: 0.45rem 0.55rem;
 }
 
 .swatch__colors {
@@ -924,8 +956,8 @@ input[type="range"]::-moz-range-thumb {
 .bars {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-  min-height: 5rem;
+  gap: 6px;
+  height: 3.9rem;
 }
 
 .bar {
@@ -986,9 +1018,9 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .tap {
-  min-width: 6rem;
+  min-width: 7.5rem;
   min-height: calc(var(--control) * 1.7);
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
@@ -1031,12 +1063,21 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
 }
 
-.statusbar__fill {
+.statusbar__hint {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.55;
+}
+
+.statusbar__hint--on {
+  opacity: 1;
+  color: var(--text);
 }
 
 @media (max-width: 559px) {
-  .statusbar > :nth-child(n + 5):not(:last-child) {
+  .statusbar > :nth-child(n + 5):not(:last-child):not(.statusbar__hint) {
     display: none;
   }
 }
@@ -1255,7 +1296,13 @@ input[type="range"]::-moz-range-thumb {
 
 @media (pointer: coarse) {
   .pad {
-    min-height: 4.6rem;
+    min-height: 5.4rem;
+  }
+}
+
+@media (hover: none) {
+  .statusbar__hint {
+    visibility: hidden;
   }
 }
 

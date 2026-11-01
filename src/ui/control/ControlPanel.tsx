@@ -13,6 +13,7 @@ import { ShortcutsDialog } from './ShortcutsDialog';
 import { SignalPanel } from './SignalPanel';
 import { StatusBar } from './StatusBar';
 import { TopBar } from './TopBar';
+import { useHint } from './use-hint';
 import { Welcome } from './Welcome';
 
 export interface ControlActions {
@@ -61,11 +62,12 @@ export function ControlPanel({
   ...actions
 }: ControlPanelProps) {
   const { onPatch } = actions;
+  const { root, hint } = useHint();
   const audioIdle =
     snapshot && connected && snapshot.audio.status !== 'running' && !snapshot.show.demo;
 
   return (
-    <div class="app">
+    <div class="app" ref={root}>
       <TopBar
         connected={connected}
         snapshot={snapshot}
@@ -146,7 +148,7 @@ export function ControlPanel({
         )}
       </main>
 
-      <StatusBar connected={connected} snapshot={snapshot} />
+      <StatusBar connected={connected} snapshot={snapshot} hint={hint} />
 
       <AppearanceDialog
         open={dialog === 'appearance'}

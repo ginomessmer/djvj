@@ -24,17 +24,22 @@ function Bar({ label, value }: { label: string; value: number }) {
 
 export function SignalPanel({ signal }: SignalPanelProps) {
   return (
-    <Panel title="Signal" class="panel--signal">
+    <Panel
+      title="Signal"
+      class="panel--signal"
+      actions={
+        <span class="panel__leds">
+          <Led on={signal.present} label="signal" />
+          <Led on={signal.kick > 0.5} label="kick" />
+          <span class="panel__hint">{signal.loudnessDb.toFixed(0)} dBFS</span>
+        </span>
+      }
+    >
       <div class="bars" role="img" aria-label={`Input level ${signal.loudnessDb.toFixed(0)} dBFS`}>
         {BAND_NAMES.map((name, band) => (
           <Bar key={name} label={name} value={signal.bands[band] ?? 0} />
         ))}
         <Bar label="energy" value={signal.energy} />
-      </div>
-      <div class="row">
-        <Led on={signal.present} label="signal" />
-        <Led on={signal.kick > 0.5} label="kick" />
-        <span class="hint row__end">{signal.loudnessDb.toFixed(0)} dBFS</span>
       </div>
     </Panel>
   );

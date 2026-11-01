@@ -1,8 +1,9 @@
-import { PALETTES } from '@/domain/show/palettes';
+import { findPalette, PALETTES } from '@/domain/show/palettes';
 import type { SceneId } from '@/domain/show/scenes';
 import { SELECTABLE_SCENES } from '@/domain/show/scenes';
 import { lockPalette, lockScene, sceneKey, shortcutPatch } from '@/domain/show/shortcuts';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
+import { hint } from '../components/hint';
 import { Panel } from '../components/Panel';
 import { Toggle } from '../components/Toggle';
 
@@ -28,13 +29,12 @@ export function ScenesPanel({ show, shownSceneId, onPatch }: ScenesPanelProps) {
         />
       }
     >
+      {/* Each pad carries a slim strip in the colours of the palette that is playing. */}
       <fieldset
         class="group pads"
-        title={
-          show.auto
-            ? 'The director picks scenes from the music. Press a pad to lock one. The bar under each name shows how calm to intense the scene is.'
-            : 'Scene locked. Switch Auto-rotate back on to let the music decide.'
-        }
+        style={{
+          '--tint': `linear-gradient(90deg, ${findPalette(show.paletteId).colors.join(', ')})`,
+        }}
       >
         <legend class="sr-only">Scenes</legend>
         {SELECTABLE_SCENES.map((scene) => {
@@ -49,6 +49,9 @@ export function ScenesPanel({ show, shownSceneId, onPatch }: ScenesPanelProps) {
               aria-pressed={shown}
               aria-keyshortcuts={key ?? undefined}
               onClick={() => onPatch(lockScene(scene.id))}
+              {...hint(
+                `Lock ${scene.name}${key ? ` (key ${key})` : ''}. The bar shows how calm to intense it is.`,
+              )}
             >
               {key && <kbd class="pad__key">{key}</kbd>}
               <span class="pad__name">{scene.name}</span>
@@ -72,6 +75,7 @@ export function ScenesPanel({ show, shownSceneId, onPatch }: ScenesPanelProps) {
             class="swatch"
             aria-pressed={palette.id === show.paletteId}
             onClick={() => onPatch(lockPalette(palette.id))}
+            {...hint(`Use the ${palette.name} palette`)}
           >
             <span
               class="swatch__colors"
