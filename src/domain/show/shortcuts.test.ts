@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTES } from './palettes';
 import { SELECTABLE_SCENE_IDS } from './scenes';
-import { lockPalette, lockScene, shortcutPatch } from './shortcuts';
+import { commandPatch, lockPalette, lockScene, SHOW_COMMANDS, shortcutPatch } from './shortcuts';
 import { INITIAL_SHOW_STATE } from './show-state';
 
 const show = INITIAL_SHOW_STATE;
+
+describe('commandPatch', () => {
+  it('changes something for every command', () => {
+    for (const command of SHOW_COMMANDS) {
+      expect(Object.keys(commandPatch(command, show)).length).toBeGreaterThan(0);
+    }
+  });
+});
 
 describe('shortcutPatch', () => {
   it('toggles switches', () => {

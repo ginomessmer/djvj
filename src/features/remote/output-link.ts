@@ -1,7 +1,11 @@
+import { MIDI_ACTIONS, type MidiAction } from '@/domain/midi/midi-mapping';
 import type { ControlMessage, OutputMessage } from '@/domain/remote/protocol';
 import type { MessageBus } from '@/services/message-bus';
 import type { OutputRuntime } from '../output/output-runtime';
 import type { ShowStoreApi } from '../show/show-store';
+
+const isMidiAction = (value: unknown): value is MidiAction =>
+  (MIDI_ACTIONS as readonly unknown[]).includes(value);
 
 /**
  * Connects the output window to the control window: snapshots go out, control messages come in.
@@ -34,6 +38,11 @@ export function linkOutputToBus(
         break;
       case 'set-logo':
         if (typeof message.dataUrl === 'string') runtime.setLogo(message.dataUrl);
+        break;
+      case 'midi-learn':
+        if (message.action === null || isMidiAction(message.action)) {
+          runtime.learnMidi(message.action);
+        }
         break;
     }
   });

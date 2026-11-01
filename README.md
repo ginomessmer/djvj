@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 4.** Audio in → beat tracking and song structure → 10 beat-synced scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard, adaptive resolution and MIDI learn for the DDJ-FLX10 (or any controller). Feedback trails and particles come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -63,6 +63,21 @@ Optional, in the control window's *Name and logo* card: a DJ name and/or a logo 
 
 - **Flash guard.** The output's actual brightness is measured every frame (a tiny copy of the image, read back without stalling the GPU). If it flashes more than three times a second (the WCAG 2.3.1 limit), pulses are damped and the image dims slightly for a few seconds. The *flash guard* light in the Output card shows when it is active. Beat pulses up to 160 BPM stay under the limit; the guard is for the raw-kick fallback without a beat lock, which can fire on the off-beat bass too.
 - **Adaptive resolution.** When frames get slow, the resolution drops in steps (to 35 % of the pixels at most) and comes back once there is headroom, so the GPU never starves rekordbox. On by default; the Output card shows when it is reducing.
+
+## MIDI controller (DDJ-FLX10)
+
+Panic, blackout, tap tempo and the rest on pads of your controller, so you never have to reach for the laptop mid-set. In the control window's *MIDI controller* card:
+
+1. Switch on **Use a MIDI controller**. Chrome asks for permission **in the output window** (once; it remembers).
+2. Click **Learn** next to an action, then press the pad (or turn the knob, for brightness). Done: the mapping is stored in this browser.
+3. The card shows the last message received (`Note 36 · ch 8 = 127`): handy to check what a control sends.
+
+| Action | Control |
+| --- | --- |
+| Panic, Blackout, Tap tempo, Tempo back to auto, Auto on/off, Next scene, Next palette | a pad or button (fires once per press) |
+| Brightness | a knob or fader (CC) |
+
+djvj only **reads** MIDI and sends nothing back, so rekordbox keeps working with the controller at the same time. But rekordbox hears every control too: a pad that is a hot cue in rekordbox would trigger the cue *and* the djvj action. Use controls rekordbox ignores, for example a pad mode you don't play with, or remove the assignment of a few pads in rekordbox's MIDI mapping (its MIDI Learn window) and learn those. Web MIDI needs Chrome or Edge (not Safari).
 
 ## Getting audio in
 

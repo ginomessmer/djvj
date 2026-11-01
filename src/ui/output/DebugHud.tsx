@@ -5,7 +5,7 @@ interface DebugHudProps {
 }
 
 export function DebugHud({ snapshot }: DebugHudProps) {
-  const { show, signal, rhythm, safety, overlay, performance, shownSceneId } = snapshot;
+  const { show, signal, rhythm, safety, overlay, midi, performance, shownSceneId } = snapshot;
   const lines = [
     `${performance.fps.toFixed(0)} fps · ${performance.frameMs.toFixed(1)} ms · ${performance.resolution.join('×')}`,
     `scene ${shownSceneId}${show.auto ? ' (auto)' : ' (locked)'} · palette ${show.paletteId}`,
@@ -13,6 +13,7 @@ export function DebugHud({ snapshot }: DebugHudProps) {
     `bands ${signal.bands.map((level) => level.toFixed(2)).join(' ')}`,
     `${rhythm.bpm.toFixed(1)} BPM · lock ${rhythm.confidence.toFixed(2)} · beat ${rhythm.beatPhase.toFixed(2)} · ${rhythm.section}`,
     `flash guard ${safety.flashGuard.toFixed(2)} · resolution ×${safety.resolutionScale.toFixed(2)} · overlay ${overlay.opacity.toFixed(2)} · tempo ${rhythm.source}`,
+    `midi ${midi.status}${midi.lastEvent ? ` · ${midi.lastEvent}` : ''}`,
   ];
   return <pre class="hud">{lines.join('\n')}</pre>;
 }

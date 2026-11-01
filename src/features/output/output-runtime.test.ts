@@ -172,6 +172,25 @@ describe('OutputRuntime', () => {
     expect(runtime.getSnapshot().rhythm.source).toBe('auto');
   });
 
+  it('takes the tempo from a MIDI pad, timed when the pad was hit', async () => {
+    const { runtime, store, midi, fakeMidi } = createTestRuntime();
+    midi.start();
+    store.getState().apply({
+      midiEnabled: true,
+      midiBindings: { tap: { kind: 'note', channel: 0, number: 1 } },
+    });
+    await vi.waitFor(() => expect(runtime.getSnapshot().midi.status).toBe('on'));
+    runFrames(runtime, 1);
+    for (let i = 0; i < 4; i++) {
+      fakeMidi.send([0x90, 1, 127], (2 + i * (60 / 140)) * 1000);
+      fakeMidi.send([0x90, 1, 0]);
+    }
+    runFrames(runtime, 2, 4);
+    const { rhythm } = runtime.getSnapshot();
+    expect(rhythm.source).toBe('tap');
+    expect(Math.abs(rhythm.bpm - 140)).toBeLessThan(0.5);
+  });
+
   it('publishes snapshots that can be sent to another window', () => {
     const { runtime, store } = createTestRuntime();
     const received: unknown[] = [];

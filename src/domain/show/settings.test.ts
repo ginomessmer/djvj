@@ -23,6 +23,17 @@ describe('parseStoredSettings', () => {
   });
 });
 
+describe('MIDI settings', () => {
+  it('are off and unmapped by default, and survive a reload', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ midiEnabled: false, midiBindings: {} });
+    const midiBindings = { panic: { kind: 'note', channel: 7, number: 36 } } as const;
+    expect(parseStoredSettings({ midiEnabled: true, midiBindings })).toMatchObject({
+      midiEnabled: true,
+      midiBindings,
+    });
+  });
+});
+
 describe('showPatchSchema', () => {
   it('accepts partial, valid patches', () => {
     expect(showPatchSchema.safeParse({ intensity: 0.4 }).success).toBe(true);

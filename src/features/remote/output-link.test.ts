@@ -57,3 +57,14 @@ describe('linkOutputToBus', () => {
     expect(sent).toHaveLength(0);
   });
 });
+
+describe('linkOutputToBus and MIDI learn', () => {
+  it('starts and cancels MIDI learn, and ignores unknown actions', async () => {
+    const { runtime, receive } = setup();
+    const learn = vi.spyOn(runtime, 'learnMidi');
+    receive({ type: 'midi-learn', action: 'panic' });
+    receive({ type: 'midi-learn', action: null });
+    receive({ type: 'midi-learn', action: 'format-disk' } as never);
+    expect(learn.mock.calls).toEqual([['panic'], [null]]);
+  });
+});

@@ -2,12 +2,14 @@ import { render } from 'preact';
 import { CHANNEL_NAME, type ControlMessage, type OutputMessage } from '@/domain/remote/protocol';
 import { Director } from '@/domain/show/director';
 import { AudioPipeline } from '@/features/audio/audio-pipeline';
+import { MidiController } from '@/features/midi/midi-controller';
 import { OutputRuntime } from '@/features/output/output-runtime';
 import { linkOutputToBus } from '@/features/remote/output-link';
 import { createShowStore } from '@/features/show/show-store';
 import { AudioInput } from '@/services/audio-input';
 import { logoStorage } from '@/services/logo-storage';
 import { createMessageBus } from '@/services/message-bus';
+import { webMidiInput } from '@/services/midi-input';
 import { StartOverlay } from '@/ui/output/StartOverlay';
 import { Stage } from '@/vfx/stage';
 import '@/ui/styles/base.css';
@@ -23,10 +25,12 @@ function main(): void {
     const stage = new Stage(requireElement('stage'));
     const audio = new AudioPipeline(new AudioInput(), store.getState().silenceDb);
     const director = new Director(store.getState().sceneId);
-    const runtime = new OutputRuntime({ stage, store, audio, director, logoStorage });
+    const midi = new MidiController(webMidiInput, store);
+    const runtime = new OutputRuntime({ stage, store, audio, director, logoStorage, midi });
 
     linkOutputToBus(runtime, store, createMessageBus<OutputMessage, ControlMessage>(CHANNEL_NAME));
     runtime.start();
+    midi.start();
     if (import.meta.env.DEV) {
       Object.assign(window, {
         __djvj: { snapshot: () => runtime.getSnapshot(), inspect: () => runtime.inspect() },

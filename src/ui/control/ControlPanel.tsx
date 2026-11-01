@@ -1,6 +1,8 @@
+import type { MidiAction } from '@/domain/midi/midi-mapping';
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch } from '@/domain/show/show-state';
 import { AudioInputCard } from './AudioInputCard';
+import { MidiCard } from './MidiCard';
 import { OutputCard } from './OutputCard';
 import { OverlayCard } from './OverlayCard';
 import { RhythmCard } from './RhythmCard';
@@ -14,6 +16,7 @@ export interface ControlActions {
   onClearTap: () => void;
   onLogoFile: (file: File) => void;
   onRemoveLogo: () => void;
+  onMidiLearn: (action: MidiAction | null) => void;
 }
 
 interface ControlPanelProps extends ControlActions {
@@ -64,6 +67,12 @@ export function ControlPanel({ snapshot, connected, ...actions }: ControlPanelPr
             performance={snapshot.performance}
             safety={snapshot.safety}
             onPatch={onPatch}
+          />
+          <MidiCard
+            midi={snapshot.midi}
+            show={snapshot.show}
+            onPatch={onPatch}
+            onLearn={actions.onMidiLearn}
           />
         </>
       )}

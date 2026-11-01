@@ -57,6 +57,11 @@ button:hover,
   border-color: #3a3a4d;
 }
 
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 button.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent) inset;
