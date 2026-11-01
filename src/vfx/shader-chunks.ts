@@ -1,7 +1,8 @@
 /**
  * Every scene is a GLSL file that only defines `vec3 render(vec2 uv, vec2 p)`. The header adds the
- * shared uniforms and helpers; the footer adds tone mapping, vignette, master level and dither.
- * three.js supplies `#version 300 es` and precision (GLSL3 mode); the fragment output is ours.
+ * shared uniforms and helpers, the footer a soft clip. Scenes render into textures; the composite
+ * pass blends two of them (crossfade), lays the overlay on top and applies vignette, master level
+ * and dither. three.js supplies `#version 300 es` and precision (GLSL3); the outputs are ours.
  */
 
 export const VERTEX_SHADER = /* glsl */ `
@@ -24,7 +25,6 @@ uniform float u_onset;      // same for percussive onsets
 uniform float u_beat;       // 0..1 position in the beat, 0 = on the beat
 uniform float u_pulse;      // beat-locked: 1 on every beat, ~120 ms decay; u_kick without a lock
 uniform vec3  u_palette[4];
-uniform float u_intensity;  // master brightness * fades
 
 // Smoothly cycle through the four palette colours: t wraps at 1.
 vec3 pal(float t) {
@@ -70,10 +70,42 @@ void main() {
   vec2 uv = gl_FragCoord.xy / u_res;
   vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;   // centred, height = 1
   vec3 col = render(uv, p);
+  fragColor = vec4(1.0 - exp(-1.4 * max(col, 0.0)), 1.0);   // soft clip instead of hard white
+}
+`;
 
-  col = 1.0 - exp(-1.4 * max(col, 0.0));                 // soft clip instead of hard white
-  col *= 1.0 - 0.45 * dot(uv - 0.5, uv - 0.5);            // gentle vignette
-  col *= u_intensity;                                      // master level and scene fades
+/** Blends two rendered scenes, adds the overlay, then vignette, master level and dither. */
+export const COMPOSITE_SHADER = /* glsl */ `
+out vec4 fragColor;
+
+uniform vec2      u_res;
+uniform float     u_time;
+uniform sampler2D u_from;
+uniform sampler2D u_to;
+uniform float     u_mix;            // 0 = from, 1 = to
+uniform sampler2D u_overlay;
+uniform float     u_overlayOpacity;
+uniform vec4      u_overlayRect;    // x, y, width, height in screen uv (origin bottom left)
+uniform float     u_intensity;      // master level, start-up fade, blackout, flash guard
+
+float hash21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_res;
+  vec3 col = mix(texture(u_from, uv).rgb, texture(u_to, uv).rgb, u_mix);
+
+  vec2 o = (uv - u_overlayRect.xy) / u_overlayRect.zw;
+  if (u_overlayOpacity > 0.0 && o.x >= 0.0 && o.y >= 0.0 && o.x <= 1.0 && o.y <= 1.0) {
+    vec4 mark = texture(u_overlay, o);
+    col = mix(col, mark.rgb, mark.a * u_overlayOpacity);
+  }
+
+  col *= 1.0 - 0.45 * dot(uv - 0.5, uv - 0.5);                      // gentle vignette
+  col *= u_intensity;
   col += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;   // dither against banding
   fragColor = vec4(col, 1.0);
 }

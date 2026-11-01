@@ -69,11 +69,23 @@ export class BeatClock {
     this.options = { ...DEFAULTS, ...options };
   }
 
+  /** Puts a beat at `beatSec` (e.g. from tap tempo) and forgets the fitted period. */
+  anchor(beatSec: number): void {
+    this.beatStartSec = beatSec;
+    this.fittedPeriodSec = null;
+  }
+
   /**
    * @param coarsePeriodSec the beat period from the tempo estimator
    * @param onsetStrength strength of a low-end onset detected this frame, else 0
+   * @param mayRelock false keeps the grid where it is (tapped by hand): onsets only fine-tune it
    */
-  update(tSec: number, coarsePeriodSec: number, onsetStrength: number): BeatClockState {
+  update(
+    tSec: number,
+    coarsePeriodSec: number,
+    onsetStrength: number,
+    mayRelock = true,
+  ): BeatClockState {
     const periodSec = this.periodFor(coarsePeriodSec);
     if (this.beatStartSec === null) this.beatStartSec = tSec;
     if (onsetStrength > 0) this.onsets.push({ tSec, strength: onsetStrength });
@@ -83,7 +95,7 @@ export class BeatClock {
 
     if (tSec >= this.nextEvaluationSec) {
       this.nextEvaluationSec = tSec + this.options.evaluateEverySec;
-      this.align(tSec, this.beatStartSec, periodSec);
+      this.align(tSec, this.beatStartSec, periodSec, mayRelock);
     }
 
     // Keep the grid's reference beat within one period before now.
@@ -104,7 +116,7 @@ export class BeatClock {
     return coarsePeriodSec;
   }
 
-  private align(tSec: number, beatStartSec: number, periodSec: number): void {
+  private align(tSec: number, beatStartSec: number, periodSec: number, mayRelock: boolean): void {
     const { bins, gain, jumpThreshold, relockMargin, windowSec } = this.options;
     const recent = this.onsets.filter((onset) => tSec - onset.tSec <= windowSec);
     if (recent.length < 4) {
@@ -132,6 +144,7 @@ export class BeatClock {
     // Hysteresis: only move to a cluster far from our beat when it is clearly stronger.
     // Otherwise two equal clusters (kick and off-beat bass) would make the grid flip-flop.
     const moveAway =
+      mayRelock &&
       Math.abs(strongest.phase) > jumpThreshold &&
       strongest.strength > relockMargin * onOurBeat.strength;
     const target = moveAway || onOurBeat.strength === 0 ? strongest : onOurBeat;
@@ -140,7 +153,7 @@ export class BeatClock {
     // Fit the period on the same cluster, over the longer window.
     const fitMembers = this.clusterAt(target.phase, phaseOf, this.onsets).members;
     this.fitPeriod(fitMembers, beatStartSec, periodSec, target.phase);
-    const relock = Math.abs(target.phase) > jumpThreshold && this.lock > 0.3;
+    const relock = mayRelock && Math.abs(target.phase) > jumpThreshold && this.lock > 0.3;
     this.beatStartSec = beatStartSec + (relock ? target.phase : target.phase * gain) * periodSec;
   }
 

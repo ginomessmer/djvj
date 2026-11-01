@@ -22,10 +22,11 @@ export function OutputApp({ runtime, store }: OutputAppProps) {
       onPlainKey((key) => {
         if (key === 'f') return toggleFullscreen();
         if (key === 'd') return setHudVisible((visible) => !visible);
+        if (key === 't') return runtime.tap();
         const patch = shortcutPatch(key, store.getState());
         if (patch) store.getState().apply(patch);
       }),
-    [store],
+    [runtime, store],
   );
 
   const { audio, show } = snapshot;

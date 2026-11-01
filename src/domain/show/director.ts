@@ -1,6 +1,6 @@
 import { clamp } from '../math';
 import type { Section } from '../rhythm/section-tracker';
-import { SceneFader } from './scene-fader';
+import { type SceneMix, SceneMixer } from './scene-mixer';
 import { pickScene } from './scene-picker';
 import { IDLE_SCENE_ID, SAFE_SCENE_ID, type SceneId } from './scenes';
 
@@ -19,15 +19,16 @@ export interface DirectorInput {
     hit: boolean;
     /** Whether the beat grid can be trusted. Without it, changes fall back to a timer. */
     locked: boolean;
+    /** Beat length, for timing crossfades in bars. */
+    periodSec: number;
   };
 }
 
-export interface DirectorFrame {
-  /** What to draw this frame (differs from `selectedId` while idle, panicking or fading). */
-  shownId: SceneId;
-  brightness: number;
+export interface DirectorFrame extends SceneMix<SceneId> {
   /** The selection after this frame; changes when the director moved on. */
   selectedId: SceneId;
+  /** Why the director changed the scene this frame, or null. */
+  change: ChangeReason | null;
 }
 
 export interface DirectorOptions {
@@ -60,7 +61,12 @@ const FALLBACK_BEAT_SEC = 60 / 128;
 /** The current scene and the ones before it are not picked again. */
 const RECENT_SCENES = 3;
 
-type ChangeReason = 'phrase' | 'section' | 'drop';
+export type ChangeReason = 'phrase' | 'section' | 'drop';
+
+/** Crossfade lengths: the director's own changes last a bar, everything else a moment. */
+const TRANSITION_BEATS = 4;
+const FALLBACK_TRANSITION_SEC = 2;
+const OTHER_TRANSITION_SEC = 1.5;
 const PRIORITY: Record<ChangeReason, number> = { phrase: 1, section: 2, drop: 3 };
 
 function strongest(a: ChangeReason | null, b: ChangeReason | null): ChangeReason | null {
@@ -72,11 +78,12 @@ function strongest(a: ChangeReason | null, b: ChangeReason | null): ChangeReason
 /**
  * Decides which scene is on screen. In auto mode it follows the music: a new scene every phrase
  * in a groove, calm scenes for breakdowns, an instant cut to a peak scene on the drop. Changes
- * land on the beat. It also handles the idle fallback, panic and the dip-to-black fades.
+ * land on the beat. Changes crossfade over a bar; the drop and panic cut. It also handles the idle
+ * fallback.
  */
 export class Director {
   private readonly options: DirectorOptions;
-  private readonly fader: SceneFader<SceneId>;
+  private readonly mixer: SceneMixer<SceneId>;
   /** Most recent first; `recent[0]` is the current selection. */
   private recent: SceneId[];
   private beatsSinceChange = 0;
@@ -86,7 +93,7 @@ export class Director {
 
   constructor(initialId: SceneId, options: Partial<DirectorOptions> = {}) {
     this.options = { ...DEFAULTS, ...options };
-    this.fader = new SceneFader(initialId);
+    this.mixer = new SceneMixer(initialId);
     this.recent = [initialId];
   }
 
@@ -98,13 +105,13 @@ export class Director {
     if (input.selectedId !== this.recent[0]) this.restartWith(input.selectedId); // picked by hand
 
     let selectedId = input.selectedId;
-    let cut = false;
+    let change: ChangeReason | null = null;
     if (input.auto && input.live && !input.panic) {
       this.secondsSinceChange += dtSec;
       if (input.beat.hit) this.beatsSinceChange++;
       this.pending = strongest(this.pending, this.reasonToChange(input));
       if (this.pending && this.mayChangeNow(this.pending, input.beat)) {
-        cut = this.pending === 'drop';
+        change = this.pending;
         selectedId = pickScene(this.targetEnergy(input), this.recent, this.options.rng);
         this.restartWith(selectedId);
       }
@@ -114,8 +121,8 @@ export class Director {
     this.lastSection = input.section;
 
     const wantedId = this.wantedScene({ ...input, selectedId });
-    const { shownId, brightness } = this.fader.update(wantedId, dtSec, input.panic || cut);
-    return { shownId, brightness, selectedId };
+    const mix = this.mixer.update(wantedId, dtSec, this.transitionSec(input, change));
+    return { ...mix, selectedId, change };
   }
 
   private reasonToChange({ section, beat }: DirectorInput): ChangeReason | null {
@@ -136,6 +143,13 @@ export class Director {
     return beat.locked
       ? this.beatsSinceChange >= minBeatsBetweenChanges
       : this.secondsSinceChange >= minBeatsBetweenChanges * FALLBACK_BEAT_SEC;
+  }
+
+  /** How long the crossfade to a newly wanted scene takes; 0 is a cut. */
+  private transitionSec({ panic, beat }: DirectorInput, change: ChangeReason | null): number {
+    if (panic || change === 'drop') return 0;
+    if (change) return beat.locked ? TRANSITION_BEATS * beat.periodSec : FALLBACK_TRANSITION_SEC;
+    return OTHER_TRANSITION_SEC; // manual pick, idle fallback, back from panic
   }
 
   private targetEnergy({ section, energy }: DirectorInput): number {

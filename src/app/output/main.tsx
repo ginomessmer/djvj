@@ -6,6 +6,7 @@ import { OutputRuntime } from '@/features/output/output-runtime';
 import { linkOutputToBus } from '@/features/remote/output-link';
 import { createShowStore } from '@/features/show/show-store';
 import { AudioInput } from '@/services/audio-input';
+import { logoStorage } from '@/services/logo-storage';
 import { createMessageBus } from '@/services/message-bus';
 import { StartOverlay } from '@/ui/output/StartOverlay';
 import { Stage } from '@/vfx/stage';
@@ -22,7 +23,7 @@ function main(): void {
     const stage = new Stage(requireElement('stage'));
     const audio = new AudioPipeline(new AudioInput(), store.getState().silenceDb);
     const director = new Director(store.getState().sceneId);
-    const runtime = new OutputRuntime({ stage, store, audio, director });
+    const runtime = new OutputRuntime({ stage, store, audio, director, logoStorage });
 
     linkOutputToBus(runtime, store, createMessageBus<OutputMessage, ControlMessage>(CHANNEL_NAME));
     runtime.start();

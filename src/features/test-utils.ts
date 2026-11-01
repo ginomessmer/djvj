@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { Director, type DirectorOptions } from '@/domain/show/director';
 import type { AudioInput } from '@/services/audio-input';
-import type { Stage } from '@/vfx/stage';
+import type { LuminanceSample, Stage } from '@/vfx/stage';
 import { AudioPipeline } from './audio/audio-pipeline';
 import { OutputRuntime } from './output/output-runtime';
 import { createShowStore } from './show/show-store';
@@ -38,11 +38,23 @@ export function fakeAudioInput(overrides: Partial<Record<keyof AudioInput, unkno
 export function createTestRuntime(directorOptions: Partial<DirectorOptions> = {}) {
   vi.stubGlobal('localStorage', memoryStorage());
   const store = createShowStore();
-  const stage = { resize: vi.fn(() => [640, 360]), render: vi.fn() };
+  const stage = {
+    resize: vi.fn((_budgetScale: number, _quality?: number): [number, number] => [640, 360]),
+    render: vi.fn(),
+    luminance: vi.fn((): LuminanceSample | null => null),
+  };
+  const logos: string[] = [];
+  const logoStorage = { load: () => '', save: (url: string) => void logos.push(url) };
   const audio = new AudioPipeline(fakeAudioInput(), store.getState().silenceDb);
   const director = new Director(store.getState().sceneId, directorOptions);
-  const runtime = new OutputRuntime({ stage: stage as unknown as Stage, store, audio, director });
-  return { runtime, store, stage, audio };
+  const runtime = new OutputRuntime({
+    stage: stage as unknown as Stage,
+    store,
+    audio,
+    director,
+    logoStorage,
+  });
+  return { runtime, store, stage, audio, logos };
 }
 
 /** Runs frames at 60 fps for `seconds`, starting at `startSec`. */

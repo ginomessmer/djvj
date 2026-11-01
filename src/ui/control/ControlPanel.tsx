@@ -2,24 +2,28 @@ import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch } from '@/domain/show/show-state';
 import { AudioInputCard } from './AudioInputCard';
 import { OutputCard } from './OutputCard';
+import { OverlayCard } from './OverlayCard';
 import { RhythmCard } from './RhythmCard';
 import { SceneCard } from './SceneCard';
 import { SignalCard } from './SignalCard';
 
-interface ControlPanelProps {
+export interface ControlActions {
+  onPatch: (patch: ShowPatch) => void;
+  onRefreshDevices: () => void;
+  onTap: () => void;
+  onClearTap: () => void;
+  onLogoFile: (file: File) => void;
+  onRemoveLogo: () => void;
+}
+
+interface ControlPanelProps extends ControlActions {
   /** Null until the output window answered. */
   snapshot: ShowSnapshot | null;
   connected: boolean;
-  onPatch: (patch: ShowPatch) => void;
-  onRefreshDevices: () => void;
 }
 
-export function ControlPanel({
-  snapshot,
-  connected,
-  onPatch,
-  onRefreshDevices,
-}: ControlPanelProps) {
+export function ControlPanel({ snapshot, connected, ...actions }: ControlPanelProps) {
+  const { onPatch } = actions;
   return (
     <main class="control">
       <header class="control__header">
@@ -37,19 +41,37 @@ export function ControlPanel({
             audio={snapshot.audio}
             show={snapshot.show}
             onPatch={onPatch}
-            onRefreshDevices={onRefreshDevices}
+            onRefreshDevices={actions.onRefreshDevices}
           />
           <SignalCard signal={snapshot.signal} />
-          <RhythmCard rhythm={snapshot.rhythm} show={snapshot.show} onPatch={onPatch} />
+          <RhythmCard
+            rhythm={snapshot.rhythm}
+            show={snapshot.show}
+            onPatch={onPatch}
+            onTap={actions.onTap}
+            onClearTap={actions.onClearTap}
+          />
           <SceneCard show={snapshot.show} shownSceneId={snapshot.shownSceneId} onPatch={onPatch} />
-          <OutputCard show={snapshot.show} performance={snapshot.performance} onPatch={onPatch} />
+          <OverlayCard
+            show={snapshot.show}
+            overlay={snapshot.overlay}
+            onPatch={onPatch}
+            onLogoFile={actions.onLogoFile}
+            onRemoveLogo={actions.onRemoveLogo}
+          />
+          <OutputCard
+            show={snapshot.show}
+            performance={snapshot.performance}
+            safety={snapshot.safety}
+            onPatch={onPatch}
+          />
         </>
       )}
 
       <footer class="muted">
         Keys here and in the output window: <kbd>A</kbd> auto · <kbd>N</kbd> next · <kbd>C</kbd>{' '}
-        palette · <kbd>B</kbd> blackout · <kbd>P</kbd> panic · <kbd>M</kbd> demo. <kbd>F</kbd>{' '}
-        (fullscreen) only works in the output window.
+        palette · <kbd>T</kbd> tap tempo · <kbd>B</kbd> blackout · <kbd>P</kbd> panic · <kbd>M</kbd>{' '}
+        demo. <kbd>F</kbd> (fullscreen) only works in the output window.
       </footer>
     </main>
   );

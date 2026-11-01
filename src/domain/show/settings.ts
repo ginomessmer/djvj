@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OVERLAY_MODES } from './overlay-scheduler';
 
 /** Settings that survive a reload. Single source of truth for their type, range and default. */
 export const settingsFields = {
@@ -13,6 +14,13 @@ export const settingsFields = {
   silenceDb: z.number().min(-80).max(-20),
   /** Shifts the beat grid to compensate audio and display latency: positive = beats earlier. */
   beatOffsetMs: z.number().min(-150).max(150),
+  /** Auto mode also changes the palette (on drops and every few phrases). Picking one locks it. */
+  autoPalette: z.boolean(),
+  /** Lower the resolution automatically when frames get slow. */
+  adaptiveResolution: z.boolean(),
+  overlayMode: z.enum(OVERLAY_MODES),
+  /** DJ name for the overlay (the logo is stored separately: it is too big for every update). */
+  overlayName: z.string().max(40),
 };
 
 export const settingsSchema = z.object(settingsFields);
@@ -26,6 +34,10 @@ export const DEFAULT_SETTINGS: Settings = {
   paletteId: 'synthwave',
   silenceDb: -52,
   beatOffsetMs: 0,
+  autoPalette: true,
+  adaptiveResolution: true,
+  overlayMode: 'off',
+  overlayName: '',
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

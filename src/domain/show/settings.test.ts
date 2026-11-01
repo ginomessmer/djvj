@@ -30,6 +30,14 @@ describe('showPatchSchema', () => {
     expect(showPatchSchema.safeParse({}).success).toBe(true);
   });
 
+  it('validates the overlay settings', () => {
+    expect(
+      showPatchSchema.safeParse({ overlayMode: 'reveal', overlayName: 'DJ Gino' }).success,
+    ).toBe(true);
+    expect(showPatchSchema.safeParse({ overlayMode: 'blink' }).success).toBe(false);
+    expect(showPatchSchema.safeParse({ overlayName: 'x'.repeat(41) }).success).toBe(false);
+  });
+
   it('rejects out-of-range values and unknown scenes', () => {
     expect(showPatchSchema.safeParse({ intensity: 5 }).success).toBe(false);
     expect(showPatchSchema.safeParse({ renderScale: 0 }).success).toBe(false);
