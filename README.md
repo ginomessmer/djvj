@@ -32,18 +32,18 @@ npm run build && npm run preview
 
 Ordered from calm to intense. The energy range is what the phase 2 director will use to pick scenes for builds, drops and breakdowns.
 
-| Scene | Look | Energy |
-| --- | --- | --- |
-| Aurora | slow curtains of light under faint stars | calm |
-| Lava | glowing blobs that merge and split | calm to mid |
-| Fluid | domain-warped noise (also the idle scene) | calm to high |
-| Rings | one ring per frequency band | low to high |
-| Grid | retro perspective floor, striped sun, mountains | mid to high |
-| Orb | raymarched sphere deformed by the bass | mid to high |
-| Kaleidoscope | folded wave pattern, kicks pulse the zoom | mid to high |
-| Tunnel | checkered tunnel, speed follows the music | mid to peak |
-| Starfield | streaks out of the centre, longer with energy | high to peak |
-| Lasers | two fans of beams, soft pulses (no strobing) | high to peak |
+| Preview | Scene | Look | Energy |
+| --- | --- | --- | --- |
+| <img src="docs/scenes/aurora.jpg" alt="Aurora scene" width="240"> | Aurora | slow curtains of light under faint stars | calm |
+| <img src="docs/scenes/lava.jpg" alt="Lava scene" width="240"> | Lava | glowing blobs that merge and split | calm to mid |
+| <img src="docs/scenes/fluid.jpg" alt="Fluid scene" width="240"> | Fluid | domain-warped noise (also the idle scene) | calm to high |
+| <img src="docs/scenes/rings.jpg" alt="Rings scene" width="240"> | Rings | one ring per frequency band | low to high |
+| <img src="docs/scenes/grid.jpg" alt="Grid scene" width="240"> | Grid | retro perspective floor, striped sun, mountains | mid to high |
+| <img src="docs/scenes/orb.jpg" alt="Orb scene" width="240"> | Orb | raymarched sphere deformed by the bass | mid to high |
+| <img src="docs/scenes/kaleidoscope.jpg" alt="Kaleidoscope scene" width="240"> | Kaleidoscope | folded wave pattern, kicks pulse the zoom | mid to high |
+| <img src="docs/scenes/tunnel.jpg" alt="Tunnel scene" width="240"> | Tunnel | checkered tunnel, speed follows the music | mid to peak |
+| <img src="docs/scenes/starfield.jpg" alt="Starfield scene" width="240"> | Starfield | streaks out of the centre, longer with energy | high to peak |
+| <img src="docs/scenes/lasers.jpg" alt="Lasers scene" width="240"> | Lasers | two fans of beams, soft pulses (no strobing) | high to peak |
 
 ## Rhythm and structure
 
