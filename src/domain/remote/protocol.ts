@@ -1,4 +1,5 @@
 import type { AudioDevice, AudioStatus } from '../audio/audio-device';
+import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
 
@@ -22,6 +23,15 @@ export interface ShowSnapshot {
     energy: number;
     kick: number;
     loudnessDb: number;
+  };
+  rhythm: {
+    /** 0 until a tempo was found. */
+    bpm: number;
+    /** 0..1: how far the beat grid can be trusted. */
+    confidence: number;
+    /** 0..1 position in the beat (0 = on the beat). */
+    beatPhase: number;
+    section: Section;
   };
   /** What is on screen right now (differs from `show.sceneId` while idle, panicking or fading). */
   shownSceneId: SceneId;

@@ -36,6 +36,8 @@ export class Stage {
     u_energy: { value: 0 },
     u_kick: { value: 0 },
     u_onset: { value: 0 },
+    u_beat: { value: 0 },
+    u_pulse: { value: 0 },
     u_palette: { value: Array.from({ length: PALETTE_SIZE }, () => new THREE.Color()) },
     u_intensity: { value: 1 },
   };
@@ -111,13 +113,15 @@ export class Stage {
     this.renderer.render(this.scene, this.camera);
   }
 
-  private applyFrame({ time, flow, features, palette, intensity }: FrameParams): void {
+  private applyFrame({ time, flow, features, rhythm, palette, intensity }: FrameParams): void {
     const { uniforms } = this;
     uniforms.u_time.value = time;
     uniforms.u_flow.value = flow;
     uniforms.u_energy.value = features.energy;
     uniforms.u_kick.value = features.kick;
     uniforms.u_onset.value = features.onset;
+    uniforms.u_beat.value = rhythm.beatPhase;
+    uniforms.u_pulse.value = rhythm.pulse;
     uniforms.u_intensity.value = intensity;
     features.bands.forEach((level, band) => {
       uniforms.u_bands.value[band] = level;

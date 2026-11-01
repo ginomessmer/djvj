@@ -9,7 +9,7 @@ vec3 render(vec2 uv, vec2 p) {
       sin(t * (0.7 + 0.13 * fi) + fi * 2.1) * 0.55,
       cos(t * (0.5 + 0.11 * fi) + fi * 1.7) * 0.32
     );
-    float radius = 0.12 + 0.07 * u_bands[i % 5] + (i == 0 ? 0.03 * u_kick : 0.0);
+    float radius = 0.12 + 0.07 * u_bands[i % 5] + (i == 0 ? 0.03 * u_pulse : 0.0);
     vec2 d = p - centre;
     field += (radius * radius) / (dot(d, d) + 1e-4);
   }

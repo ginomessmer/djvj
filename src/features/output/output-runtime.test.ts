@@ -46,11 +46,40 @@ describe('OutputRuntime', () => {
     expect(lastDraw(stage).sceneId).toBe('ambient');
   });
 
-  it('rotates scenes while music plays and writes the new selection to the store', () => {
-    const { runtime, store } = createTestRuntime({ intervalSec: 2, rng: () => 0.5 });
+  it('changes scene on the beat grid while music plays and writes it to the store', () => {
+    const { runtime, store } = createTestRuntime({ phraseBeats: 8, rng: () => 0.5 });
     store.getState().apply({ demo: true });
-    runFrames(runtime, 10);
+    runFrames(runtime, 20);
     expect(store.getState().sceneId).not.toBe('tunnel');
+  });
+
+  it('finds the tempo and the groove of the demo music', () => {
+    const { runtime, store } = createTestRuntime();
+    store.getState().apply({ demo: true });
+    runFrames(runtime, 12);
+    const { rhythm } = runtime.getSnapshot();
+    expect(Math.abs(rhythm.bpm - 128)).toBeLessThan(1);
+    expect(rhythm.confidence).toBeGreaterThan(0.5);
+    expect(rhythm.section).toBe('groove');
+  });
+
+  it('follows the demo into its breakdown and cuts to a peak scene on the drop', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({ demo: true });
+    const sections: string[] = [];
+    let t = 1;
+    while (t < 59.5) {
+      t = runFrames(runtime, 0.25, t);
+      const { section } = runtime.getSnapshot().rhythm;
+      if (sections.at(-1) !== section) sections.push(section);
+    }
+    expect(sections).toEqual(['groove', 'breakdown', 'build']);
+
+    runFrames(runtime, 60.5 - t, t); // the demo drops at 60 s
+    const { sceneId, frame } = lastDraw(stage);
+    expect(runtime.getSnapshot().rhythm.section).toBe('drop');
+    expect(['tunnel', 'starfield', 'lasers']).toContain(sceneId);
+    expect(frame.intensity).toBeGreaterThan(0.9); // a cut, not a fade
   });
 
   it('publishes snapshots that can be sent to another window', () => {

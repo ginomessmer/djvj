@@ -11,6 +11,8 @@ export const settingsFields = {
   paletteId: z.string(),
   /** Input quieter than this (dBFS) counts as silence. */
   silenceDb: z.number().min(-80).max(-20),
+  /** Shifts the beat grid to compensate audio and display latency: positive = beats earlier. */
+  beatOffsetMs: z.number().min(-150).max(150),
 };
 
 export const settingsSchema = z.object(settingsFields);
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   auto: true,
   paletteId: 'synthwave',
   silenceDb: -52,
+  beatOffsetMs: 0,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

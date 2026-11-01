@@ -8,6 +8,12 @@ export interface FrameParams {
   /** Time integrated with audio energy: use it for travel so speed changes stay smooth. */
   flow: number;
   features: Pick<AudioFeatures, 'bands' | 'energy' | 'kick' | 'onset'>;
+  rhythm: {
+    /** 0..1 position in the beat (0 = on the beat). */
+    beatPhase: number;
+    /** Beat-locked pulse; falls back to the raw kick without a tempo lock. */
+    pulse: number;
+  };
   palette: Palette;
   /** Final brightness 0..1 (master level, fades, blackout). */
   intensity: number;

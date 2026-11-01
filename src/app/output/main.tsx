@@ -27,7 +27,9 @@ function main(): void {
     linkOutputToBus(runtime, store, createMessageBus<OutputMessage, ControlMessage>(CHANNEL_NAME));
     runtime.start();
     if (import.meta.env.DEV) {
-      Object.assign(window, { __djvj: { snapshot: () => runtime.getSnapshot() } });
+      Object.assign(window, {
+        __djvj: { snapshot: () => runtime.getSnapshot(), inspect: () => runtime.inspect() },
+      });
     }
     render(<OutputApp runtime={runtime} store={store} />, root);
   } catch (error) {

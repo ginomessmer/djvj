@@ -1,6 +1,5 @@
 import { vi } from 'vitest';
-import { Director } from '@/domain/show/director';
-import type { SceneRotatorOptions } from '@/domain/show/scene-rotator';
+import { Director, type DirectorOptions } from '@/domain/show/director';
 import type { AudioInput } from '@/services/audio-input';
 import type { Stage } from '@/vfx/stage';
 import { AudioPipeline } from './audio/audio-pipeline';
@@ -36,12 +35,12 @@ export function fakeAudioInput(overrides: Partial<Record<keyof AudioInput, unkno
 }
 
 /** A runtime with a real store, director and pipeline, and a fake stage that records its draws. */
-export function createTestRuntime(rotation: Partial<SceneRotatorOptions> = {}) {
+export function createTestRuntime(directorOptions: Partial<DirectorOptions> = {}) {
   vi.stubGlobal('localStorage', memoryStorage());
   const store = createShowStore();
   const stage = { resize: vi.fn(() => [640, 360]), render: vi.fn() };
   const audio = new AudioPipeline(fakeAudioInput(), store.getState().silenceDb);
-  const director = new Director(store.getState().sceneId, rotation);
+  const director = new Director(store.getState().sceneId, directorOptions);
   const runtime = new OutputRuntime({ stage: stage as unknown as Stage, store, audio, director });
   return { runtime, store, stage, audio };
 }

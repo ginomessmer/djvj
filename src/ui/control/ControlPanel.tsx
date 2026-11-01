@@ -2,6 +2,7 @@ import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch } from '@/domain/show/show-state';
 import { AudioInputCard } from './AudioInputCard';
 import { OutputCard } from './OutputCard';
+import { RhythmCard } from './RhythmCard';
 import { SceneCard } from './SceneCard';
 import { SignalCard } from './SignalCard';
 
@@ -39,6 +40,7 @@ export function ControlPanel({
             onRefreshDevices={onRefreshDevices}
           />
           <SignalCard signal={snapshot.signal} />
+          <RhythmCard rhythm={snapshot.rhythm} show={snapshot.show} onPatch={onPatch} />
           <SceneCard show={snapshot.show} shownSceneId={snapshot.shownSceneId} onPatch={onPatch} />
           <OutputCard show={snapshot.show} performance={snapshot.performance} onPatch={onPatch} />
         </>

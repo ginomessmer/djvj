@@ -1,10 +1,10 @@
-// Starfield: stars streaming out of the centre. Speed follows the energy; kicks and energy
+// Starfield: stars streaming out of the centre. Speed follows the energy; beats and energy
 // lengthen the streaks (a change of size, not a flash).
 vec3 render(vec2 uv, vec2 p) {
   float r = length(p) + 1e-4;
   float angle = atan(p.y, p.x) / 6.2831853 + 0.5;
   float z = 0.25 / r;                                        // "depth": large near the centre
-  float trail = min(0.25 + 0.9 * u_energy + 0.8 * u_kick, 0.85);
+  float trail = min(0.25 + 0.9 * u_energy + 0.8 * u_pulse, 0.85);
 
   vec3 col = pal(0.78) * 0.03;
   for (int layer = 0; layer < 3; layer++) {

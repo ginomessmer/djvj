@@ -17,7 +17,7 @@ vec3 render(vec2 uv, vec2 p) {
   col *= 0.55 + 0.9 * u_energy;
 
   col *= smoothstep(0.0, 0.22, r);                                  // fog at the vanishing point
-  col += pal(t * 0.04 + 0.3) * u_kick * 0.5 * exp(-r * 3.0);        // kick glow
+  col += pal(t * 0.04 + 0.3) * u_pulse * 0.5 * exp(-r * 3.0);        // beat glow
   col += pal(0.9) * u_bands[4] * 0.12
        * hash21(floor(gl_FragCoord.xy / 3.0) + floor(u_time * 24.0)); // hi-hat shimmer
   return col;

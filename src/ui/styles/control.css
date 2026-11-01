@@ -149,3 +149,40 @@
   background: var(--ok);
   box-shadow: 0 0 8px var(--ok);
 }
+
+.bpm {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 7.5rem;
+}
+
+.bpm small {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.section-tag {
+  margin-left: auto;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.section-tag--groove {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.section-tag--build {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.section-tag--drop {
+  color: var(--accent);
+  border-color: var(--accent);
+}

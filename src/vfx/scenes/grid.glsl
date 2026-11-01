@@ -11,7 +11,7 @@ vec3 render(vec2 uv, vec2 p) {
 
     // Sun with horizontal slits that widen towards its lower edge
     vec2 sunCentre = vec2(0.0, HORIZON + 0.2);
-    float sunRadius = 0.17 + 0.012 * u_kick;
+    float sunRadius = 0.17 + 0.012 * u_pulse;
     float sunDist = length(p - sunCentre);
     float down = clamp((sunCentre.y + sunRadius - p.y) / (2.0 * sunRadius), 0.0, 1.0);
     float slit = step(fract(p.y * 34.0), 0.7 * down) * step(0.35, down);
