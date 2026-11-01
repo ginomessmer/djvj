@@ -1,6 +1,6 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
+import { Disclosure } from '../components/Disclosure';
 import { Led } from '../components/Led';
 import { Slider } from '../components/Slider';
 import { Toggle } from '../components/Toggle';
@@ -17,15 +17,10 @@ export function OutputCard({ show, performance, safety, onPatch }: OutputCardPro
   const adapting = safety.resolutionScale < 1;
 
   return (
-    <Card title="Output">
-      <Slider
-        label="Brightness"
-        value={show.intensity}
-        min={0}
-        max={1}
-        step={0.01}
-        onInput={(intensity) => onPatch({ intensity })}
-      />
+    <Disclosure
+      title="Output quality"
+      summary={adapting ? `reduced to ${Math.round(safety.resolutionScale * 100)} %` : undefined}
+    >
       <Slider
         label="Resolution budget"
         value={show.renderScale}
@@ -41,29 +36,11 @@ export function OutputCard({ show, performance, safety, onPatch }: OutputCardPro
         onChange={(adaptiveResolution) => onPatch({ adaptiveResolution })}
       />
       <div class="row">
-        <button
-          type="button"
-          class={show.blackout ? 'active' : ''}
-          onClick={() => onPatch({ blackout: !show.blackout })}
-        >
-          Blackout (B)
-        </button>
-        <button
-          type="button"
-          class={show.panic ? 'danger active' : 'danger'}
-          onClick={() => onPatch({ panic: !show.panic })}
-        >
-          Panic (P)
-        </button>
-        <span class="row__end">
-          <Led on={safety.flashGuard > 0} label="flash guard" />
+        <Led on={safety.flashGuard > 0} label="flash guard" />
+        <span class="hint row__end">
+          {performance.fps.toFixed(0)} fps · {performance.frameMs.toFixed(1)} ms · {width}×{height}
         </span>
       </div>
-      <p class="muted">
-        {performance.fps.toFixed(0)} fps · {performance.frameMs.toFixed(1)} ms/frame · {width}×
-        {height} px
-        {adapting && ` (reduced to ${Math.round(safety.resolutionScale * 100)} %)`}
-      </p>
-    </Card>
+    </Disclosure>
   );
 }

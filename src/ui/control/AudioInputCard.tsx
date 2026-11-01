@@ -1,6 +1,6 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
+import { Disclosure } from '../components/Disclosure';
 import { Slider } from '../components/Slider';
 import { Toggle } from '../components/Toggle';
 
@@ -19,7 +19,10 @@ function statusText({ status, error }: ShowSnapshot['audio']): string {
 
 export function AudioInputCard({ audio, show, onPatch, onRefreshDevices }: AudioInputCardProps) {
   return (
-    <Card title="Audio input">
+    <Disclosure
+      title="Audio input"
+      summary={audio.status === 'running' ? 'listening' : 'not started'}
+    >
       <div class="row">
         <select
           aria-label="Audio input device"
@@ -39,7 +42,9 @@ export function AudioInputCard({ audio, show, onPatch, onRefreshDevices }: Audio
           Refresh
         </button>
       </div>
-      <p class="muted">{statusText(audio)}</p>
+      <p class="hint" role="status">
+        {statusText(audio)}
+      </p>
       <Slider
         label="Silence threshold"
         value={show.silenceDb}
@@ -47,13 +52,15 @@ export function AudioInputCard({ audio, show, onPatch, onRefreshDevices }: Audio
         max={-20}
         step={1}
         format={(db) => `${db} dB`}
+        hint="Raise it if room noise keeps the signal on."
         onInput={(silenceDb) => onPatch({ silenceDb })}
       />
       <Toggle
-        label="Demo signal (simulated 128 BPM, no audio needed)"
+        label="Demo signal (simulated 128 BPM)"
+        hint="M"
         checked={show.demo}
         onChange={(demo) => onPatch({ demo })}
       />
-    </Card>
+    </Disclosure>
   );
 }

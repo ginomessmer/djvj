@@ -3,38 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
     <title>djvj</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/src/ui/styles/base.css" />
-    <link rel="stylesheet" href="/src/ui/styles/landing.css" />
+    <style>
+      /* Until the app has loaded: no white flash before the dark theme applies. */
+      html,
+      body {
+        background: #0b0c10;
+        margin: 0;
+      }
+    </style>
   </head>
   <body>
-    <main class="landing">
-      <h1>djvj</h1>
-      <p class="muted">Automated, audio-reactive visuals for a solo DJ set.</p>
-
-      <div class="landing__launch">
-        <a class="button button--primary" href="/output.html" target="djvj-output">
-          Open output<br /><small>for the big screen</small>
-        </a>
-        <a class="button" href="/control.html" target="djvj-control">
-          Open control<br /><small>stays on your laptop</small>
-        </a>
-      </div>
-
-      <ol class="landing__steps">
-        <li>
-          Open the <b>output</b> window, drag it to the big screen, click once to allow audio
-          input, press <kbd>F</kbd>.
-        </li>
-        <li>
-          Open <b>control</b> on the laptop screen. Pick the audio input there: built-in mic, a
-          USB interface, or <b>BlackHole</b>.
-        </li>
-        <li>No audio yet? Press <kbd>M</kbd> for a simulated demo signal.</li>
-      </ol>
-
-      <p class="muted">Use Chrome. Everything runs locally and offline.</p>
-    </main>
+    <!-- The output view draws into #stage; the control view only uses #root. -->
+    <div id="stage" class="stage"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.ts"></script>
   </body>
 </html>

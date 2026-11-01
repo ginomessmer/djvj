@@ -1,21 +1,8 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
-import type { Section } from '@/domain/rhythm/section-tracker';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
 import { Card } from '../components/Card';
-import { Led } from '../components/Led';
 import { Meter } from '../components/Meter';
 import { Slider } from '../components/Slider';
-
-export const SECTION_LABELS: Record<Section, string> = {
-  quiet: 'Quiet',
-  groove: 'Groove',
-  breakdown: 'Breakdown',
-  build: 'Build-up',
-  drop: 'Drop',
-};
-
-/** Below this confidence the tempo is not shown: it would only be a guess. */
-const SHOW_BPM_FROM = 0.2;
 
 interface RhythmCardProps {
   rhythm: ShowSnapshot['rhythm'];
@@ -26,35 +13,31 @@ interface RhythmCardProps {
 }
 
 export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmCardProps) {
-  const known = rhythm.bpm > 0 && rhythm.confidence >= SHOW_BPM_FROM;
   const tapped = rhythm.source === 'tap';
 
   return (
-    <Card title="Rhythm">
+    <Card title="Rhythm" class="card--rhythm">
+      <Meter label="Lock" value={rhythm.confidence} />
       <div class="row">
-        <span class="bpm">
-          {known ? rhythm.bpm.toFixed(1) : '–––'}
-          <small> BPM{tapped && ' · tapped'}</small>
-        </span>
-        <Led on={known && rhythm.beatPhase < 0.25} label="beat" />
-        <span class={`section-tag section-tag--${rhythm.section}`}>
-          {SECTION_LABELS[rhythm.section]}
-        </span>
-      </div>
-      <Meter label="lock" value={rhythm.confidence} />
-      <div class="row">
-        <button type="button" class="tap" onPointerDown={onTap}>
-          Tap (T)
+        {/* A press counts at once (pointerdown); `detail === 0` is a click from the keyboard. */}
+        <button
+          type="button"
+          class="tap"
+          aria-keyshortcuts="T"
+          onPointerDown={onTap}
+          onClick={(event) => event.detail === 0 && onTap()}
+        >
+          Tap <kbd>T</kbd>
         </button>
-        {tapped && (
+        {tapped ? (
           <button type="button" onClick={onClearTap}>
             Back to auto
           </button>
+        ) : (
+          <span class="hint">Not locking? Tap four times on the kick.</span>
         )}
       </div>
-      <p class="muted">
-        Not locking? Tap four times on the kick: the tapped tempo stays until you go back to auto.
-      </p>
+      {tapped && <p class="hint">Tapped tempo is held until you go back to auto.</p>}
       <Slider
         label="Beat offset"
         value={show.beatOffsetMs}
@@ -62,11 +45,9 @@ export function RhythmCard({ rhythm, show, onPatch, onTap, onClearTap }: RhythmC
         max={150}
         step={5}
         format={(ms) => `${ms > 0 ? '+' : ''}${ms} ms`}
+        hint="Visuals late on the big screen? Move right until the pulse sits on the kick."
         onInput={(beatOffsetMs) => onPatch({ beatOffsetMs })}
       />
-      <p class="muted">
-        Visuals late on the big screen? Move the offset right until the pulse sits on the kick.
-      </p>
     </Card>
   );
 }

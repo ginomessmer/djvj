@@ -1,7 +1,7 @@
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { OverlayMode } from '@/domain/show/overlay-scheduler';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
-import { Card } from '../components/Card';
+import { Disclosure } from '../components/Disclosure';
 
 const MODE_LABELS: Record<OverlayMode, string> = {
   off: 'Off',
@@ -25,18 +25,20 @@ export function OverlayCard({
   onRemoveLogo,
 }: OverlayCardProps) {
   return (
-    <Card title="Name and logo">
-      <select
-        aria-label="Overlay mode"
-        value={show.overlayMode}
-        onChange={(event) => onPatch({ overlayMode: event.currentTarget.value as OverlayMode })}
-      >
-        {(Object.keys(MODE_LABELS) as OverlayMode[]).map((mode) => (
-          <option key={mode} value={mode}>
-            {MODE_LABELS[mode]}
-          </option>
-        ))}
-      </select>
+    <Disclosure title="Name and logo" summary={MODE_LABELS[show.overlayMode]}>
+      <label class="field">
+        <span class="field__label">Show</span>
+        <select
+          value={show.overlayMode}
+          onChange={(event) => onPatch({ overlayMode: event.currentTarget.value as OverlayMode })}
+        >
+          {(Object.keys(MODE_LABELS) as OverlayMode[]).map((mode) => (
+            <option key={mode} value={mode}>
+              {MODE_LABELS[mode]}
+            </option>
+          ))}
+        </select>
+      </label>
       <label class="field">
         <span class="field__label">DJ name</span>
         <input
@@ -66,7 +68,7 @@ export function OverlayCard({
           </button>
         )}
       </div>
-      <p class="muted">A transparent PNG works best. Shown in white over the visuals.</p>
-    </Card>
+      <p class="hint">A transparent PNG works best. Shown in white over the visuals.</p>
+    </Disclosure>
   );
 }

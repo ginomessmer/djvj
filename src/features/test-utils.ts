@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import type { PreviewFrame } from '@/domain/remote/preview';
 import { Director, type DirectorOptions } from '@/domain/show/director';
 import type { AudioInput } from '@/services/audio-input';
 import type { LuminanceSample, Stage } from '@/vfx/stage';
@@ -42,6 +43,8 @@ export function createTestRuntime(directorOptions: Partial<DirectorOptions> = {}
     resize: vi.fn((_budgetScale: number, _quality?: number): [number, number] => [640, 360]),
     render: vi.fn(),
     luminance: vi.fn((): LuminanceSample | null => null),
+    setPreviewWanted: vi.fn(),
+    takePreviewFrame: vi.fn((): PreviewFrame | null => null),
   };
   const logos: string[] = [];
   const logoStorage = { load: () => '', save: (url: string) => void logos.push(url) };

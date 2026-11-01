@@ -1,14 +1,4 @@
 :root {
-  color-scheme: dark;
-  --bg: #0b0b10;
-  --card: #15151d;
-  --line: #262633;
-  --text: #ececf3;
-  --muted: #8b8b9c;
-  --accent: #ff2e97;
-  --ok: #19e68c;
-  --warn: #ffb020;
-  --danger: #ff4d5e;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -23,55 +13,28 @@ body {
 }
 
 kbd {
+  /* Sans, not mono: a monospace O looks like a 0 on a key cap. */
   font:
-    600 0.8em ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-  background: #22222e;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
-.muted {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-select,
-button,
-.button {
-  font: inherit;
+    700 0.78rem ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   color: var(--text);
-  background: #1d1d28;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  text-decoration: none;
+  background: var(--surface-3);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
-button:hover,
-.button:hover {
-  border-color: #3a3a4d;
-}
-
-button.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-}
-
-button.danger {
-  color: var(--danger);
-}
-
-button.danger.active {
-  background: var(--danger);
-  color: #000;
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
