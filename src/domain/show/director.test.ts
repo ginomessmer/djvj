@@ -31,6 +31,7 @@ class Show {
         live: true,
         section: 'groove',
         energy: 0.7,
+        camera: false,
         ...rest,
         selectedId: this.selectedId,
         beat: { hit: locked && hit, locked, periodSec: BEAT_SEC },
@@ -145,5 +146,52 @@ describe('Director', () => {
       expect(picks[i]).not.toBe(picks[i - 1]);
       expect(picks[i]).not.toBe(picks[i - 2]);
     }
+  });
+
+  describe('with a camera', () => {
+    const isCamera = (id: SceneId) => SCENES.find((scene) => scene.id === id)?.camera ?? false;
+
+    it('rotates camera scenes in while a camera runs, but never two in a row', () => {
+      let seed = 1;
+      const rng = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const show = new Show({ rng });
+      show.run(30 * 60, { camera: true });
+      const ids = show.changes.map((change) => change.to);
+      expect(ids.some(isCamera)).toBe(true);
+      expect(ids.filter(isCamera).length).toBeLessThan(ids.length / 2);
+      ids.forEach((id, i) => {
+        if (i > 0 && isCamera(id)) expect(isCamera(ids[i - 1]), `change ${i}`).toBe(false);
+      });
+    });
+
+    it('never rotates a camera scene in without a camera', () => {
+      const show = new Show();
+      show.run(20 * 60);
+      expect(show.changes.length).toBeGreaterThan(10);
+      expect(show.changes.some((change) => isCamera(change.to))).toBe(false);
+    });
+
+    it('leaves a camera scene on the next beat when the camera goes away', () => {
+      const show = new Show();
+      show.selectedId = 'halftone';
+      show.run(1, { camera: true });
+      expect(show.changes).toHaveLength(0);
+      show.run(1, { camera: false });
+      expect(show.changes).toHaveLength(1);
+      const [{ to, tSec }] = show.changes;
+      expect(isCamera(to)).toBe(false);
+      expect(tSec - 1).toBeLessThanOrEqual(BEAT_SEC + STEP);
+      expect(onBeat(tSec)).toBe(true);
+    });
+
+    it('keeps a camera scene that was picked by hand, camera or not', () => {
+      const show = new Show();
+      show.selectedId = 'glitch';
+      expect(show.run(5, { auto: false, camera: false })).toMatchObject({ toId: 'glitch' });
+      expect(show.changes).toHaveLength(0);
+    });
   });
 });

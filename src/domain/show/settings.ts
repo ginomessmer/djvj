@@ -21,6 +21,12 @@ export const settingsFields = {
   overlayMode: z.enum(OVERLAY_MODES),
   /** DJ name for the overlay (the logo is stored separately: it is too big for every update). */
   overlayName: z.string().max(40),
+  /** Use a camera for the camera scenes. Off until the DJ turns it on (it asks for permission). */
+  cameraEnabled: z.boolean(),
+  /** '' = an iPhone via Continuity Camera if there is one, else the system default. */
+  cameraDeviceId: z.string(),
+  /** Mirror the camera like a selfie. Off: the audience sees the booth the right way round. */
+  cameraMirror: z.boolean(),
 };
 
 export const settingsSchema = z.object(settingsFields);
@@ -38,6 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
   adaptiveResolution: true,
   overlayMode: 'off',
   overlayName: '',
+  cameraEnabled: false,
+  cameraDeviceId: '',
+  cameraMirror: false,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

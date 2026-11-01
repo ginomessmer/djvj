@@ -1,4 +1,5 @@
 import type { AudioDevice, AudioStatus } from '../audio/audio-device';
+import type { CameraDevice, CameraStatus } from '../camera/camera-device';
 import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
@@ -17,6 +18,14 @@ export interface ShowSnapshot {
     error: string | null;
     devices: AudioDevice[];
     activeDeviceId: string;
+  };
+  camera: {
+    status: CameraStatus;
+    error: string | null;
+    devices: CameraDevice[];
+    activeDeviceId: string;
+    /** Delivering frames: the director may rotate camera scenes in. */
+    ready: boolean;
   };
   signal: {
     present: boolean;

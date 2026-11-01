@@ -35,3 +35,34 @@ describe('pickScene', () => {
     for (let i = 0; i < 50; i++) expect(pickScene(0.15, [], () => i / 50)).not.toBe('ambient');
   });
 });
+
+describe('pickScene with a camera', () => {
+  const cameraIds = SCENES.filter((scene) => scene.camera).map((scene) => scene.id);
+  const draws = (pick: (rng: () => number) => string, n = 100) =>
+    Array.from({ length: n }, (_, i) => pick(() => i / n));
+
+  it('never picks a camera scene without a camera', () => {
+    for (const target of [0.25, 0.6, 0.95]) {
+      for (const id of draws((rng) => pickScene(target, [], rng))) {
+        expect(cameraIds).not.toContain(id);
+      }
+    }
+  });
+
+  it('includes camera scenes while a camera is running', () => {
+    const picked = new Set(
+      [0.25, 0.6, 0.95].flatMap((target) =>
+        draws((rng) => pickScene(target, [], rng, { camera: true })),
+      ),
+    );
+    for (const id of cameraIds) expect(picked).toContain(id);
+  });
+
+  it('does not follow a camera scene with another one', () => {
+    for (const current of cameraIds) {
+      for (const id of draws((rng) => pickScene(0.8, [current], rng, { camera: true }))) {
+        expect(cameraIds).not.toContain(id);
+      }
+    }
+  });
+});

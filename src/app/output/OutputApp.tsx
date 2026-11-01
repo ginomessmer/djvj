@@ -36,7 +36,15 @@ export function OutputApp({ runtime, store }: OutputAppProps) {
 
   return (
     <>
-      {needsAudio && <StartOverlay message={message} onStart={() => void runtime.startAudio()} />}
+      {needsAudio && (
+        <StartOverlay
+          message={message}
+          onStart={() => {
+            void runtime.startAudio();
+            runtime.retryCamera();
+          }}
+        />
+      )}
       {hudVisible && <DebugHud snapshot={snapshot} />}
     </>
   );

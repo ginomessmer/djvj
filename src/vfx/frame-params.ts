@@ -18,6 +18,12 @@ export interface FrameParams {
   palette: Palette;
   /** Final brightness 0..1 (master level, fades, blackout). */
   intensity: number;
+  camera: {
+    /** The playing camera, or null: camera scenes then show a generated stand-in. */
+    video: HTMLVideoElement | null;
+    /** Mirror it like a selfie. */
+    mirror: boolean;
+  };
 }
 
 /** The DJ name / logo mark laid over the scenes. */

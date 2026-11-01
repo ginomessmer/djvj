@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTES } from './palettes';
-import { SELECTABLE_SCENE_IDS } from './scenes';
+import { SELECTABLE_SCENE_IDS, SELECTABLE_SCENES } from './scenes';
 import { lockPalette, lockScene, SHORTCUT_GROUPS, sceneKey, shortcutPatch } from './shortcuts';
 import { INITIAL_SHOW_STATE } from './show-state';
 
@@ -43,7 +43,14 @@ describe('shortcutPatch', () => {
     expect(shortcutPatch('0', show)).toEqual(lockScene(SELECTABLE_SCENE_IDS[9]));
   });
 
-  it('every selectable scene has exactly one number key that picks it', () => {
+  it('Q W E R pick the camera scenes', () => {
+    const cameraIds = SELECTABLE_SCENES.filter((scene) => scene.camera).map((scene) => scene.id);
+    expect(['q', 'w', 'e', 'r'].map((key) => shortcutPatch(key, show))).toEqual(
+      cameraIds.map(lockScene),
+    );
+  });
+
+  it('every selectable scene has exactly one key that picks it', () => {
     const keys = SELECTABLE_SCENE_IDS.map((id) => sceneKey(id));
     expect(new Set(keys).size).toBe(SELECTABLE_SCENE_IDS.length);
     SELECTABLE_SCENE_IDS.forEach((id) => {

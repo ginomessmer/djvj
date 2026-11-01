@@ -2,11 +2,14 @@ import { nextPalette } from './palettes';
 import { nextSceneId, type SceneId, SELECTABLE_SCENE_IDS } from './scenes';
 import type { ShowPatch, ShowState } from './show-state';
 
-/** Keys 1..9 and 0 pick the first ten scenes; they are listed in the same order as the pads. */
-const SCENE_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const;
+/**
+ * Keys 1..9 and 0 pick the ten generated scenes, Q W E R (the row below) the camera scenes; both
+ * in the same order as the pads.
+ */
+const SCENE_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'q', 'w', 'e', 'r'] as const;
 
 export function sceneKey(sceneId: SceneId): string | null {
-  return SCENE_KEYS[SELECTABLE_SCENE_IDS.indexOf(sceneId)] ?? null;
+  return SCENE_KEYS[SELECTABLE_SCENE_IDS.indexOf(sceneId)]?.toUpperCase() ?? null;
 }
 
 /** Single-key actions, shared by the output and control windows. `null` = not a shortcut. */
@@ -73,6 +76,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     title: 'Scenes and colours',
     shortcuts: [
       { keys: ['1', '…', '0'], action: 'Pick scene 1 to 10 (locks it)', where: 'both' },
+      { keys: ['Q', 'W', 'E', 'R'], action: 'Pick a camera scene (locks it)', where: 'both' },
       { keys: ['N'], action: 'Next scene (locks it)', where: 'both' },
       { keys: ['A'], action: 'Auto-rotate scenes on or off', where: 'both' },
       { keys: ['C'], action: 'Next palette', where: 'both' },

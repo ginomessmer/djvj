@@ -187,6 +187,61 @@ describe('OutputRuntime', () => {
     expect(() => structuredClone(snapshot)).not.toThrow(); // what postMessage requires
   });
 
+  describe('camera', () => {
+    it('stays off until turned on, then opens and hands the video to the stage', async () => {
+      const { runtime, store, stage, cameraInput } = createTestRuntime();
+      runFrames(runtime, 0.2);
+      expect(cameraInput.start).not.toHaveBeenCalled();
+      expect(lastDraw(stage).frame.camera.video).toBeNull();
+
+      store.getState().apply({ cameraEnabled: true, cameraMirror: true });
+      await vi.waitFor(() => expect(runtime.getSnapshot().camera.ready).toBe(true));
+      runFrames(runtime, 0.2, 2);
+      expect(lastDraw(stage).frame.camera).toEqual({ video: cameraInput.video, mirror: true });
+      expect(runtime.getSnapshot().camera).toMatchObject({
+        status: 'running',
+        activeDeviceId: 'webcam',
+      });
+
+      store.getState().apply({ cameraEnabled: false });
+      runFrames(runtime, 0.2, 3);
+      expect(cameraInput.stop).toHaveBeenCalled();
+      expect(lastDraw(stage).frame.camera.video).toBeNull();
+      expect(runtime.getSnapshot().camera.status).toBe('off');
+    });
+
+    it('opens the camera the DJ picks', async () => {
+      const { runtime, store, cameraInput } = createTestRuntime();
+      store.getState().apply({ cameraEnabled: true });
+      await vi.waitFor(() => expect(runtime.getSnapshot().camera.ready).toBe(true));
+      store.getState().apply({ cameraDeviceId: 'usb' });
+      await vi.waitFor(() => expect(runtime.getSnapshot().camera.activeDeviceId).toBe('usb'));
+      expect(cameraInput.start).toHaveBeenLastCalledWith('usb');
+    });
+
+    it('rotates camera scenes in only while the camera runs', async () => {
+      const cameraScenes = ['halftone', 'glyphs', 'neon', 'glitch'];
+      const shown = async (cameraEnabled: boolean) => {
+        let draw = 0;
+        const { runtime, store, stage } = createTestRuntime({
+          phraseBeats: 4,
+          minBeatsBetweenChanges: 2,
+          rng: () => (draw++ * 0.37) % 1,
+        });
+        store.getState().apply({ demo: true, cameraEnabled });
+        if (cameraEnabled) {
+          await vi.waitFor(() => expect(runtime.getSnapshot().camera.ready).toBe(true));
+        }
+        runFrames(runtime, 60);
+        return new Set(stage.render.mock.calls.map(([mix]) => mix.toId as string));
+      };
+      const without = await shown(false);
+      expect(cameraScenes.filter((id) => without.has(id))).toEqual([]);
+      const withCamera = await shown(true);
+      expect(cameraScenes.some((id) => withCamera.has(id))).toBe(true);
+    });
+  });
+
   describe('preview', () => {
     const frame = { width: 2, height: 2, pixels: new Uint8ClampedArray(16) };
 

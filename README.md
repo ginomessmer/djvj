@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes plus 4 live-camera scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -44,6 +44,25 @@ Ordered from calm to intense. The energy range is what the phase 2 director will
 | Tunnel | checkered tunnel, speed follows the music | mid to peak |
 | Starfield | streaks out of the centre, longer with energy | high to peak |
 | Lasers | two fans of beams, soft pulses (no strobing) | high to peak |
+
+### Camera scenes
+
+Point a camera at yourself and the decks, and four more scenes put you into the visuals. They only rotate in while a camera is live, never two in a row, and keys `Q` `W` `E` `R` pick them.
+
+| Scene | Look | Energy |
+| --- | --- | --- |
+| Halftone | the camera as a rotated grid of palette-coloured dots; beats swell them | low to high |
+| Glyphs | falling columns of symbols; where the camera is bright, you appear inside the rain | mid to high |
+| Neon edges | glowing outlines of whatever the camera sees, over a dim copy of the image | mid to peak |
+| Glitch | palette-mapped camera, colour fringes on the bass, slices that slip on the kick | high to peak |
+
+Turn it on in the control window's *Camera* card (the output window asks for camera access once).
+
+- **Which camera.** *Automatic* uses an iPhone via **Continuity Camera** if one is around (never its Desk View camera), otherwise the default webcam. Any USB camera can be picked too. Continuity Camera is far better in a dark booth than the MacBook webcam.
+- **Light.** A small LED light on you makes the biggest difference. The scenes also lift a dark image themselves (auto gain from the frame's average) and blur away sensor noise before they draw outlines, but they cannot invent detail that is not there.
+- **Mirror** is off by default, so the audience sees you and the text on your gear the right way round.
+- **When the camera goes away** (iPhone taken off, cable pulled) the director leaves a camera scene on the next beat and the camera is retried every 2 s. A camera scene picked by hand without a camera shows a generated stand-in figure instead of black.
+- The image stays on the laptop: it is never recorded or sent anywhere.
 
 ## Rhythm and structure
 
@@ -97,6 +116,7 @@ Press **`?`** in the control view for the list. Single keys work in the output w
 | `F`       | Fullscreen (output window only)                                            |
 | `O`       | Open or focus the output window (control window only)                      |
 | `1`…`0`   | Pick scene 1 to 10 (same order as the pads). Locks it.                     |
+| `Q` `W` `E` `R` | Pick a camera scene (Halftone, Glyphs, Neon edges, Glitch). Locks it. |
 | `?`       | Shortcut list (control window only)                                        |
 | `A`       | Auto-rotate scenes on/off. Picking a scene manually locks it.              |
 | `N` / `C` | Next scene / next palette                                                  |
@@ -115,7 +135,7 @@ Press **`?`** in the control view for the list. Single keys work in the output w
 - The output window keeps working with **no control window** open. Control only sends messages.
 - Keep the output window **visible** on the second display: browsers throttle hidden windows.
 - Resolution is capped at a **1080p pixel budget** (adjustable in control) so the GPU stays free for rekordbox's audio.
-- Settings (device, palette, brightness, resolution, auto, beat offset, overlay) and the logo are remembered per browser.
+- Settings (device, camera, palette, brightness, resolution, auto, beat offset, overlay) and the logo are remembered per browser.
 
 ## Code structure
 
@@ -124,7 +144,7 @@ Five layers plus the entry points. A layer may only import the ones below it; `s
 | Layer         | Responsibility                                                                                               | May use                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
 | `domain/`     | Pure logic and types: audio analysis, rhythm and song structure, scene director, settings, palettes, shortcuts, message protocol, colour and theme preferences | `zod`                            |
-| `services/`   | Thin adapters to browser APIs: Web Audio input, `BroadcastChannel`, keyboard                                 | domain                           |
+| `services/`   | Thin adapters to browser APIs: Web Audio input, camera, `BroadcastChannel`, keyboard                         | domain                           |
 | `vfx/`        | The three.js stage and the GLSL scenes                                                                       | domain, `three`                  |
 | `features/`   | Use cases that wire the above together: show store, audio pipeline, output runtime, link to the control window | domain, services, vfx, `zustand` |
 | `ui/`         | Presentational Preact components and styles: props in, events out, no business logic                         | domain, `preact`                 |
@@ -132,10 +152,10 @@ Five layers plus the entry points. A layer may only import the ones below it; `s
 
 ```
 src/
-  domain/    audio/ (features, DSP)   rhythm/ (tempo, beat clock, sections)   show/ (scenes, director, settings)   remote/
-  services/  audio-input   message-bus   keyboard
+  domain/    audio/ (features, DSP)   camera/   rhythm/ (tempo, beat clock, sections)   show/ (scenes, director, settings)   remote/
+  services/  audio-input   camera-input   message-bus   keyboard
   vfx/       stage   shader-chunks   scenes/*.glsl
-  features/  audio/   show/ (zustand store)   output/ (runtime)   remote/ (output-link)
+  features/  audio/   camera/   show/ (zustand store)   output/ (runtime)   remote/ (output-link)
   ui/        components/   control/   output/   styles/ (themes.css = colour tokens)
   app/       main.ts (picks the view)   output/   control/
 ```
