@@ -7,7 +7,7 @@ import { linkOutputToBus } from './output-link';
 afterEach(() => vi.unstubAllGlobals());
 
 function setup() {
-  const { runtime, store } = createTestRuntime();
+  const { runtime, store, stage } = createTestRuntime();
   let receive: (message: ControlMessage) => void = () => undefined;
   const sent: OutputMessage[] = [];
   const bus: MessageBus<OutputMessage, ControlMessage> = {
@@ -19,7 +19,14 @@ function setup() {
     close: () => undefined,
   };
   const unlink = linkOutputToBus(runtime, store, bus);
-  return { runtime, store, sent, receive: (message: ControlMessage) => receive(message), unlink };
+  return {
+    runtime,
+    store,
+    stage,
+    sent,
+    receive: (message: ControlMessage) => receive(message),
+    unlink,
+  };
 }
 
 describe('linkOutputToBus', () => {
@@ -47,7 +54,20 @@ describe('linkOutputToBus', () => {
     const { store, sent } = setup();
     store.getState().apply({ blackout: true });
     const last = sent.at(-1);
-    expect(last?.snapshot.show.blackout).toBe(true);
+    expect(last?.type === 'snapshot' && last.snapshot.show.blackout).toBe(true);
+  });
+
+  it('keeps the preview going while the control window asks for it, and forwards the frames', () => {
+    const { runtime, stage, receive, sent } = setup();
+    const frame = { width: 1, height: 1, pixels: new Uint8ClampedArray(4) };
+    stage.takePreviewFrame.mockReturnValue(frame);
+
+    runtime.renderFrame(performance.now() / 1000);
+    expect(sent.filter((m) => m.type === 'frame')).toHaveLength(0);
+
+    receive({ type: 'watch-preview' });
+    runtime.renderFrame(performance.now() / 1000 + 0.5);
+    expect(sent.filter((m) => m.type === 'frame')).toEqual([{ type: 'frame', frame }]);
   });
 
   it('stops forwarding after unlink', () => {

@@ -12,6 +12,7 @@ import { createMessageBus } from '@/services/message-bus';
 import { webMidiInput } from '@/services/midi-input';
 import { StartOverlay } from '@/ui/output/StartOverlay';
 import { Stage } from '@/vfx/stage';
+import '@/ui/styles/themes.css';
 import '@/ui/styles/base.css';
 import '@/ui/styles/output.css';
 import { requireElement } from '../dom';
@@ -19,6 +20,7 @@ import { OutputApp } from './OutputApp';
 
 /** Composition root of the output window: builds the objects and wires them together. */
 function main(): void {
+  document.title = 'djvj output';
   const root = requireElement('root');
   try {
     const store = createShowStore();

@@ -4,6 +4,7 @@ import type { MidiState } from '../midi/midi-status';
 import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
+import type { PreviewFrame } from './preview';
 
 /**
  * The output window owns all state and rendering and keeps working with no control window open.
@@ -70,7 +71,12 @@ export type ControlMessage =
   | { type: 'clear-tap' }
   /** An image data URL for the overlay, or '' to remove it. */
   | { type: 'set-logo'; dataUrl: string }
+  /** The preview pane is visible: keep sending frames for a few more seconds. Repeat to keep it. */
+  | { type: 'watch-preview' }
   /** Bind the next MIDI control that is pressed or moved to this action; null cancels. */
   | { type: 'midi-learn'; action: MidiAction | null };
 
-export type OutputMessage = { type: 'snapshot'; snapshot: ShowSnapshot };
+export type OutputMessage =
+  | { type: 'snapshot'; snapshot: ShowSnapshot }
+  /** A small copy of the screen, only sent while a control window is watching. */
+  | { type: 'frame'; frame: PreviewFrame };

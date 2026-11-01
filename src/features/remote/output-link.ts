@@ -19,6 +19,7 @@ export function linkOutputToBus(
   const sendSnapshot = () => bus.send({ type: 'snapshot', snapshot: runtime.getSnapshot() });
 
   const stopSnapshots = runtime.subscribe((snapshot) => bus.send({ type: 'snapshot', snapshot }));
+  const stopFrames = runtime.subscribeFrames((frame) => bus.send({ type: 'frame', frame }));
   const stopMessages = bus.subscribe((message) => {
     switch (message.type) {
       case 'hello':
@@ -36,6 +37,9 @@ export function linkOutputToBus(
       case 'clear-tap':
         runtime.clearTap();
         break;
+      case 'watch-preview':
+        runtime.watchPreview();
+        break;
       case 'set-logo':
         if (typeof message.dataUrl === 'string') runtime.setLogo(message.dataUrl);
         break;
@@ -49,6 +53,7 @@ export function linkOutputToBus(
 
   return () => {
     stopSnapshots();
+    stopFrames();
     stopMessages();
   };
 }

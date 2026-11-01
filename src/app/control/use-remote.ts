@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import type { PreviewFrame } from '@/domain/remote/preview';
 import {
   CHANNEL_NAME,
   type ControlMessage,
@@ -10,11 +11,18 @@ import { createMessageBus, type MessageBus } from '@/services/message-bus';
 const CONNECTION_TIMEOUT_MS = 2500;
 const WATCHDOG_INTERVAL_MS = 1000;
 
-/** Talks to the output window: latest snapshot, whether it is alive, and a way to send messages. */
+type FrameListener = (frame: PreviewFrame) => void;
+
+/**
+ * Talks to the output window: latest snapshot, whether it is alive, a way to send messages and
+ * the live preview frames. Frames bypass React state: they arrive ~10 times a second and go
+ * straight to a canvas.
+ */
 export function useRemote() {
   const [snapshot, setSnapshot] = useState<ShowSnapshot | null>(null);
   const [connected, setConnected] = useState(false);
   const busRef = useRef<MessageBus<ControlMessage, OutputMessage> | null>(null);
+  const frameListeners = useRef(new Set<FrameListener>());
 
   useEffect(() => {
     const bus = createMessageBus<ControlMessage, OutputMessage>(CHANNEL_NAME);
@@ -22,6 +30,10 @@ export function useRemote() {
     let lastSeenMs = Number.NEGATIVE_INFINITY;
 
     const stopListening = bus.subscribe((message) => {
+      if (message.type === 'frame') {
+        for (const listener of frameListeners.current) listener(message.frame);
+        return;
+      }
       if (message.type !== 'snapshot') return;
       lastSeenMs = performance.now();
       setSnapshot(message.snapshot);
@@ -32,6 +44,8 @@ export function useRemote() {
       const alive = performance.now() - lastSeenMs < CONNECTION_TIMEOUT_MS;
       setConnected(alive);
       if (!alive) bus.send({ type: 'hello' });
+      // Only ask for frames while somebody can see them: a hidden tab should not cost the output.
+      else if (document.visibilityState === 'visible') bus.send({ type: 'watch-preview' });
     }, WATCHDOG_INTERVAL_MS);
     bus.send({ type: 'hello' });
 
@@ -43,5 +57,11 @@ export function useRemote() {
   }, []);
 
   const send = useCallback((message: ControlMessage) => busRef.current?.send(message), []);
-  return { snapshot, connected, send };
+  const subscribeFrames = useCallback((listener: FrameListener) => {
+    frameListeners.current.add(listener);
+    return () => {
+      frameListeners.current.delete(listener);
+    };
+  }, []);
+  return { snapshot, connected, send, subscribeFrames };
 }

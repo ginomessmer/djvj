@@ -51,7 +51,7 @@ body.idle {
 }
 
 .overlay__hint {
-  color: var(--muted);
+  color: var(--text-dim);
   font-size: 0.85rem;
   line-height: 1.9;
 }
