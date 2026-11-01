@@ -28,7 +28,7 @@ A solo DJ plays on a Pioneer **DDJ-FLX10** with **rekordbox** on a MacBook. One 
   └── features   show store, audio pipeline, output runtime, link to the control window
         │
         ├── vfx        three.js stage, GLSL scenes
-        ├── services   browser adapters: Web Audio input, BroadcastChannel, keyboard
+        ├── services   browser adapters: Web Audio input, Web MIDI, BroadcastChannel, keyboard
         └── domain     pure logic and types, no browser APIs
 ```
 
@@ -107,7 +107,24 @@ Scenes (calm to intense): aurora, lava, fluid, rings, grid, orb, kaleidoscope, t
 
 Shortcuts are a pure function (`shortcutPatch`) used by both windows; only `F` (fullscreen) needs the output window because of the browser gesture rule. **Panic** instantly shows the ambient scene, which depends on wall-clock time only.
 
-FLX10 MIDI (phase 4) will be **read-only** and must not map pads/jogs that rekordbox also uses, or both would react.
+### MIDI (phase 4)
+
+```
+ FLX10 ──▶ Web MIDI ──▶ MidiController ──▶ MidiRouter ──▶ show command / tap / brightness
+           (service)    (features, in the   (domain)        (same commands as the keys)
+                         output window)
+                              ▲  │ status, devices, learning, last message (snapshot)
+              midi-learn      │  ▼
+                       control window: MIDI panel (bindings are a setting: patched, persisted)
+```
+
+- **Lives in the output window**, like everything else, so the pads keep working with the control window closed. The permission prompt therefore shows in the output window; the `midiEnabled` setting re-enables MIDI on reload without asking again.
+- **Read-only.** Nothing is sent to the controller, so it cannot disturb rekordbox, which reads it at the same time (CoreMIDI allows several readers). The flip side: rekordbox reacts to every control too, so the DJ learns controls rekordbox does not use. There is no default FLX10 map: from-memory note numbers would be wrong, and MIDI learn needs no guessing.
+- **Bindings** are `{kind: note | cc, channel, number}` per action, one control per action and one action per control. They are part of the settings (zod-validated, persisted); a broken or obsolete entry is dropped on load without losing the others.
+- **Triggers** fire once per press: note on (velocity 0 = release), or a CC crossing 64 (buttons that send CCs). **Brightness** follows a CC directly (7-bit; the MSB of a 14-bit fader is enough for brightness).
+- **Commands are shared with the keyboard** (`commandPatch` in `domain/show/shortcuts.ts`), so `P` and a panic pad do exactly the same.
+- **Taps are timed by the MIDI event's timestamp** (same clock as the frames), not when the message is handled, so a busy frame does not skew the tapped tempo.
+- A permission answer that arrives after MIDI was switched off again is dropped (generation counter, tested).
 
 ## Roadmap
 
@@ -118,14 +135,16 @@ FLX10 MIDI (phase 4) will be **read-only** and must not map pads/jogs that rekor
 | 2 | Beat tracker (BPM + phase), beat-synced scenes, section tracking (groove, breakdown, build, drop), director that follows them, beat offset | **done** |
 | 3 | Crossfade transitions, palette drift, name/logo overlay, flash guard, adaptive resolution, tap tempo | **done** |
 | 3+ | Feedback trails and particles | next |
-| 4 | Passive FLX10 MIDI (EQ / filter / crossfader shape the visuals), mood presets, offline packaging, gig checklist | |
+| 4 | MIDI learn for the FLX10 (or any controller): panic, blackout, tap, auto, next scene/palette, brightness | **done** |
+| 4+ | Passive MIDI (a filter sweep or the crossfader shapes the visuals), mood presets, offline packaging, gig checklist | |
 
 ## Testing
 
-- **Unit (Vitest, 333 tests):** control UI (issue #6): colour maths and contrast, preference parsing, theme contrast, preview framing and gating, shortcut table. Earlier: phase 3: scene mixer, palette rotation, overlay scheduling, flash guard (allowed and forbidden flash rates, small flicker, release), luminance, resolution governor, tap tempo, a tapped grid holding against a louder off-beat, typing in text fields, and the runtime wiring (crossfades reach the stage, palette on the drop only in auto, pulses damped under flashing, resolution reduced at 30 fps, overlay, logo validation and never in the snapshot). Phase 2: tempo (±0.1 BPM at 120–150 with frame jitter and off-beat bass, tempo changes, silence, random onsets), beat grid (on the kick, not the off-beat bass, no flip-flopping, relock after a phase shift, latency offset), sections (build/drop sequence, drop within 0.25 s, short gaps, volume changes, hats are not a build), director (phrases on the beat, drop cut, calm breakdowns, spacing, fallback timer, no repeats), and DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; the scene catalog and shaders, and the architecture rules.
+- **Unit (Vitest, 387 tests):** phase 4: MIDI parsing (note on/off, velocity-0 release, CC, ignored clock/SysEx), learning (press vs release, knobs only for brightness), one control per action, lenient stored bindings, the router (once per press, CC buttons, knob levels, wrong channel), and the controller with a fake Web MIDI (off until enabled, denied, unsupported, disable, learn without firing, persisted mapping, panic toggling, tap timestamps, brightness, a late permission answer), plus a MIDI-tapped tempo reaching the beat grid. Control UI (issue #6): colour maths and contrast, preference parsing, theme contrast, preview framing and gating, shortcut table. Earlier: phase 3: scene mixer, palette rotation, overlay scheduling, flash guard (allowed and forbidden flash rates, small flicker, release), luminance, resolution governor, tap tempo, a tapped grid holding against a louder off-beat, typing in text fields, and the runtime wiring (crossfades reach the stage, palette on the drop only in auto, pulses damped under flashing, resolution reduced at 30 fps, overlay, logo validation and never in the snapshot). Phase 2: tempo (±0.1 BPM at 120–150 with frame jitter and off-beat bass, tempo changes, silence, random onsets), beat grid (on the kick, not the off-beat bass, no flip-flopping, relock after a phase shift, latency offset), sections (build/drop sequence, drop within 0.25 s, short gaps, volume changes, hats are not a build), director (phrases on the beat, drop cut, calm breakdowns, spacing, fallback timer, no repeats), and DSP and feature extraction on synthetic spectra (band mapping, silence, gap hysteresis, onsets at 128 BPM), director, fader, rotator, shortcuts, settings and patch validation; the zustand store with a fake `localStorage` (including corrupted and missing storage); the audio pipeline with a fake input (permission denied, device lost and retried); the output runtime with a fake stage (scene choice, idle, locked, blackout, panic, rotation, snapshots surviving `structuredClone`, which `postMessage` requires); the link to the bus; the scene catalog and shaders, and the architecture rules.
 - **End to end, rhythm (headless Chromium):** a generated 75 s song played through the browser microphone path. Tempo 128.0 in the groove, sections and scene choices on time (see above). The BPM read 127.6–128.0 between runs; the audio as delivered by Chrome's fake device in this VM measured 127.8–128.0, so part of that is the test environment. Real audio hardware is clocked, so the rig should do better, but that is not verified.
 - **End to end (headless Chromium, run manually in development):** a synthetic 128 BPM WAV is fed in as the "microphone" with Chrome's fake-audio-capture flag, and the app is driven through both windows. Covered: launcher page, audio start, signal detection, ~55 fps in software GL, scene switching, keyboard shortcuts in both windows, panic, blackout, settings surviving a reload, silent input → idle scene, demo mode, debug HUD, missing device. Screenshots are inspected by hand.
-- **Not testable without the real rig:** real input latency, CPU/GPU/thermal load next to rekordbox, the physical audio tap, and the wording of a genuine microphone _permission denial_ (the unit test covers the mapping of the error name; no browser denial was exercised). Do a 60–90 minute soak test at home before a gig.
+- **End to end, MIDI (headless Chromium, a stubbed Web MIDI controller):** enable in the control window, learn panic from a pad (`Note 36 · ch 8`), the pad toggles panic in the output, learn brightness from a CC, the slider follows, and the mapping survives reloading the output window. No page errors.
+- **Not testable without the real rig:** what the FLX10 actually sends per pad mode, whether rekordbox lets those pads go unassigned, real input latency, CPU/GPU/thermal load next to rekordbox, the physical audio tap, and the wording of a genuine microphone _permission denial_ (the unit test covers the mapping of the error name; no browser denial was exercised). Do a 60–90 minute soak test at home before a gig.
 
 ## Open questions
 
@@ -133,4 +152,5 @@ FLX10 MIDI (phase 4) will be **read-only** and must not map pads/jogs that rekor
 - ~~Genres~~: techno, electronic and trance. A steady 4/4 at roughly 120–150 BPM, so the tempo estimator can use a narrow range and no half-time handling (that was the drum & bass concern). Hard techno or psytrance above ~150 BPM is the edge case to test.
 - MacBook model and typical screen resolution (default pixel budget). The user reports 60 FPS with the first three scenes; the seven added later have not been tried on the real GPU yet.
 - Logo/name assets for the optional overlay.
+- **FLX10 pads for djvj.** Which pad mode (or Shift + pads) rekordbox can spare, and whether rekordbox's MIDI mapping lets you remove those assignments. Check with the *last message* line in the MIDI controller panel before the gig.
 - DDJ-FLX10 outputs are from memory (XLR + RCA master, TRS booth): verify in the manual which carries the master mix at the same time before buying cables.

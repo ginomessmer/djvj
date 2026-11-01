@@ -1,4 +1,6 @@
 import type { AudioDevice, AudioStatus } from '../audio/audio-device';
+import type { MidiAction } from '../midi/midi-mapping';
+import type { MidiState } from '../midi/midi-status';
 import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
@@ -46,6 +48,7 @@ export interface ShowSnapshot {
     hasLogo: boolean;
     opacity: number;
   };
+  midi: MidiState;
   /** What is on screen right now (differs from `show.sceneId` while idle, panicking or fading). */
   shownSceneId: SceneId;
   performance: {
@@ -69,7 +72,9 @@ export type ControlMessage =
   /** An image data URL for the overlay, or '' to remove it. */
   | { type: 'set-logo'; dataUrl: string }
   /** The preview pane is visible: keep sending frames for a few more seconds. Repeat to keep it. */
-  | { type: 'watch-preview' };
+  | { type: 'watch-preview' }
+  /** Bind the next MIDI control that is pressed or moved to this action; null cancels. */
+  | { type: 'midi-learn'; action: MidiAction | null };
 
 export type OutputMessage =
   | { type: 'snapshot'; snapshot: ShowSnapshot }

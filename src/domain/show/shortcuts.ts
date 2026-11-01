@@ -2,6 +2,44 @@ import { nextPalette } from './palettes';
 import { nextSceneId, type SceneId, SELECTABLE_SCENE_IDS } from './scenes';
 import type { ShowPatch, ShowState } from './show-state';
 
+/** One-shot show actions, shared by the keyboard (both windows) and MIDI. */
+export const SHOW_COMMANDS = [
+  'auto',
+  'next-scene',
+  'next-palette',
+  'blackout',
+  'panic',
+  'demo',
+] as const;
+export type ShowCommand = (typeof SHOW_COMMANDS)[number];
+
+/** The change a command makes to the current show. */
+export function commandPatch(command: ShowCommand, show: ShowState): ShowPatch {
+  switch (command) {
+    case 'auto':
+      return { auto: !show.auto };
+    case 'next-scene':
+      return { sceneId: nextSceneId(show.sceneId) };
+    case 'next-palette':
+      return { paletteId: nextPalette(show.paletteId).id };
+    case 'blackout':
+      return { blackout: !show.blackout };
+    case 'panic':
+      return { panic: !show.panic };
+    case 'demo':
+      return { demo: !show.demo };
+  }
+}
+
+const KEY_COMMANDS: Record<string, ShowCommand> = {
+  a: 'auto',
+  n: 'next-scene',
+  c: 'next-palette',
+  b: 'blackout',
+  p: 'panic',
+  m: 'demo',
+};
+
 /** Keys 1..9 and 0 pick the first ten scenes; they are listed in the same order as the pads. */
 const SCENE_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const;
 
@@ -17,22 +55,8 @@ export function shortcutPatch(key: string, show: ShowState): ShowPatch | null {
     const sceneId = SELECTABLE_SCENE_IDS[sceneIndex];
     return sceneId ? lockScene(sceneId) : null;
   }
-  switch (lower) {
-    case 'a':
-      return { auto: !show.auto };
-    case 'n':
-      return { sceneId: nextSceneId(show.sceneId) };
-    case 'c':
-      return { paletteId: nextPalette(show.paletteId).id };
-    case 'b':
-      return { blackout: !show.blackout };
-    case 'p':
-      return { panic: !show.panic };
-    case 'm':
-      return { demo: !show.demo };
-    default:
-      return null;
-  }
+  const command = KEY_COMMANDS[lower];
+  return command ? commandPatch(command, show) : null;
 }
 
 /** Picking a palette by hand locks it: auto palette turns off. */

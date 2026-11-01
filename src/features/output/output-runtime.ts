@@ -2,6 +2,7 @@ import { type AudioFeatures, silentFeatures } from '@/domain/audio/audio-feature
 import { demoFeatures } from '@/domain/audio/demo-features';
 import { idleFeatures } from '@/domain/audio/idle-features';
 import { clamp, smoothstep } from '@/domain/math';
+import type { MidiAction } from '@/domain/midi/midi-mapping';
 import { ResolutionGovernor } from '@/domain/performance/resolution-governor';
 import {
   PREVIEW_INTERVAL_SEC,
@@ -20,6 +21,7 @@ import type { SceneId } from '@/domain/show/scenes';
 import type { LogoStorage } from '@/services/logo-storage';
 import type { Stage } from '@/vfx/stage';
 import type { AudioPipeline } from '../audio/audio-pipeline';
+import type { MidiController } from '../midi/midi-controller';
 import { type ShowStoreApi, toShowState } from '../show/show-store';
 import { FrameStats } from './frame-stats';
 
@@ -29,6 +31,7 @@ export interface OutputRuntimeDeps {
   audio: AudioPipeline;
   director: Director;
   logoStorage: LogoStorage;
+  midi: MidiController;
 }
 
 const SNAPSHOT_INTERVAL_SEC = 0.1;
@@ -90,11 +93,14 @@ export class OutputRuntime {
   private lastPreviewSec = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: OutputRuntimeDeps) {
-    const { store, audio } = deps;
+    const { store, audio, midi } = deps;
     this.shownSceneId = store.getState().sceneId;
     this.logoUrl = deps.logoStorage.load();
 
     audio.onChange = () => this.publish();
+    midi.onChange = () => this.publish();
+    midi.onTap = (tSec) => this.tap(tSec);
+    midi.onClearTap = () => this.clearTap();
     store.subscribe(() => this.publish());
     store.subscribe(
       (state) => state.silenceDb,
@@ -138,6 +144,11 @@ export class OutputRuntime {
   clearTap(): void {
     this.rhythmTracker.clearTap();
     this.publish();
+  }
+
+  /** The next MIDI control that is pressed or moved gets bound to `action`; null cancels. */
+  learnMidi(action: MidiAction | null): void {
+    this.deps.midi.learn(action);
   }
 
   /** Sets (or with '' removes) the overlay logo. Anything that is not a sane image is ignored. */
@@ -203,6 +214,7 @@ export class OutputRuntime {
       },
       safety: { flashGuard: this.calm, resolutionScale: this.governor.scale },
       overlay: { hasLogo: this.logoUrl !== '', opacity: this.overlay.opacity },
+      midi: this.deps.midi.state,
       shownSceneId: this.shownSceneId,
       performance: {
         fps: this.stats.fps,

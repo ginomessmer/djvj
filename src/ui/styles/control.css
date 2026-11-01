@@ -1318,3 +1318,19 @@ input[type="range"]::-moz-range-thumb {
     transition: none;
   }
 }
+
+.midi-map {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.midi-map__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}

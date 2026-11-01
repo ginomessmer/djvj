@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { midiBindingsSchema } from '../midi/midi-mapping';
 import { OVERLAY_MODES } from './overlay-scheduler';
 
 /** Settings that survive a reload. Single source of truth for their type, range and default. */
@@ -21,6 +22,10 @@ export const settingsFields = {
   overlayMode: z.enum(OVERLAY_MODES),
   /** DJ name for the overlay (the logo is stored separately: it is too big for every update). */
   overlayName: z.string().max(40),
+  /** Listen to MIDI controllers (asks the browser for permission the first time). */
+  midiEnabled: z.boolean(),
+  /** Which control does what, set by MIDI learn. */
+  midiBindings: midiBindingsSchema,
 };
 
 export const settingsSchema = z.object(settingsFields);
@@ -38,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   adaptiveResolution: true,
   overlayMode: 'off',
   overlayName: '',
+  midiEnabled: false,
+  midiBindings: {},
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

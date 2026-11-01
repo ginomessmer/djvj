@@ -1,9 +1,11 @@
+import type { MidiAction } from '@/domain/midi/midi-mapping';
 import type { PreviewFrame } from '@/domain/remote/preview';
 import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch } from '@/domain/show/show-state';
 import type { Preferences } from '@/domain/ui/preferences';
 import { AppearanceDialog } from './AppearanceDialog';
 import { AudioInputPanel } from './AudioInputPanel';
+import { MidiPanel } from './MidiPanel';
 import { OutputPanel } from './OutputPanel';
 import { OverlayPanel } from './OverlayPanel';
 import { PreviewPanel } from './PreviewPanel';
@@ -23,6 +25,7 @@ export interface ControlActions {
   onClearTap: () => void;
   onLogoFile: (file: File) => void;
   onRemoveLogo: () => void;
+  onMidiLearn: (action: MidiAction | null) => void;
 }
 
 export type DialogName = 'appearance' | 'shortcuts';
@@ -142,6 +145,12 @@ export function ControlPanel({
                 onPatch={onPatch}
                 onLogoFile={actions.onLogoFile}
                 onRemoveLogo={actions.onRemoveLogo}
+              />
+              <MidiPanel
+                midi={snapshot.midi}
+                show={snapshot.show}
+                onPatch={onPatch}
+                onLearn={actions.onMidiLearn}
               />
             </div>
           </>
