@@ -194,10 +194,14 @@ describe('OutputRuntime', () => {
       expect(cameraInput.start).not.toHaveBeenCalled();
       expect(lastDraw(stage).frame.camera.video).toBeNull();
 
-      store.getState().apply({ cameraEnabled: true, cameraMirror: true });
+      store.getState().apply({ cameraEnabled: true, cameraMirror: true, cameraPresence: 0.9 });
       await vi.waitFor(() => expect(runtime.getSnapshot().camera.ready).toBe(true));
       runFrames(runtime, 0.2, 2);
-      expect(lastDraw(stage).frame.camera).toEqual({ video: cameraInput.video, mirror: true });
+      expect(lastDraw(stage).frame.camera).toEqual({
+        video: cameraInput.video,
+        mirror: true,
+        presence: 0.9,
+      });
       expect(runtime.getSnapshot().camera).toMatchObject({
         status: 'running',
         activeDeviceId: 'webcam',

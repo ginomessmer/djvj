@@ -21,6 +21,13 @@ describe('parseStoredSettings', () => {
     expect(settings).toMatchObject({ deviceId: 'abc', intensity: 0.5, auto: false });
     expect(settings.silenceDb).toBe(DEFAULT_SETTINGS.silenceDb); // out of range
   });
+
+  it('keeps the camera presence within 0..1', () => {
+    expect(parseStoredSettings({ cameraPresence: 0.8 }).cameraPresence).toBe(0.8);
+    expect(parseStoredSettings({ cameraPresence: 3 }).cameraPresence).toBe(
+      DEFAULT_SETTINGS.cameraPresence,
+    );
+  });
 });
 
 describe('showPatchSchema', () => {

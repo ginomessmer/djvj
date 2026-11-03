@@ -60,6 +60,7 @@ Turn it on in the control window's *Camera* card (the output window asks for cam
 
 - **Which camera.** *Automatic* uses an iPhone via **Continuity Camera** if one is around (never its Desk View camera), otherwise the default webcam. Any USB camera can be picked too. Continuity Camera is far better in a dark booth than the MacBook webcam.
 - **Light.** A small LED light on you makes the biggest difference. The scenes also lift a dark image themselves (auto gain from the frame's average) and blur away sensor noise before they draw outlines, but they cannot invent detail that is not there.
+- **Camera presence** (slider in the *Camera* card, 60 % by default): how clearly you show up. It raises the contrast around the image's average, sharpens local detail (eyes, headphones, the jog wheels) and lays a soft copy of the image under the dots and symbols. Raise it in a dark booth, lower it when the camera should only be a hint.
 - **Mirror** is off by default, so the audience sees you and the text on your gear the right way round.
 - **When the camera goes away** (iPhone taken off, cable pulled) the director leaves a camera scene on the next beat and the camera is retried every 2 s. A camera scene picked by hand without a camera shows a generated stand-in figure instead of black.
 - The image stays on the laptop: it is never recorded or sent anywhere.

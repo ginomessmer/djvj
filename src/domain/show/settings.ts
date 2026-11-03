@@ -27,6 +27,8 @@ export const settingsFields = {
   cameraDeviceId: z.string(),
   /** Mirror the camera like a selfie. Off: the audience sees the booth the right way round. */
   cameraMirror: z.boolean(),
+  /** How strongly camera scenes show the camera: contrast and a soft copy of the image. */
+  cameraPresence: z.number().min(0).max(1),
 };
 
 export const settingsSchema = z.object(settingsFields);
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cameraEnabled: false,
   cameraDeviceId: '',
   cameraMirror: false,
+  cameraPresence: 0.6,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

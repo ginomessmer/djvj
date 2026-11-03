@@ -2,6 +2,7 @@ import type { ShowSnapshot } from '@/domain/remote/protocol';
 import type { ShowPatch, ShowState } from '@/domain/show/show-state';
 import { Disclosure } from '../components/Disclosure';
 import { Led } from '../components/Led';
+import { Slider } from '../components/Slider';
 import { Toggle } from '../components/Toggle';
 
 interface CameraPanelProps {
@@ -66,6 +67,16 @@ export function CameraPanel({ camera, show, onPatch, onRefreshDevices }: CameraP
               Refresh
             </button>
           </div>
+          <Slider
+            label="Camera presence"
+            value={show.cameraPresence}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(presence) => `${Math.round(presence * 100)} %`}
+            hint="How clearly you show up in the camera scenes. Raise it in a dark booth."
+            onInput={(cameraPresence) => onPatch({ cameraPresence })}
+          />
           <Toggle
             label="Mirror (like a selfie)"
             checked={show.cameraMirror}
