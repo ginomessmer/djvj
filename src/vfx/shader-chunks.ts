@@ -122,6 +122,17 @@ float cameraLumaDetail(vec2 uv, float lod) {
   return sharp + (sharp - soft) * mix(0.6, 2.2, u_cameraPresence);
 }
 
+// Luma balanced against its surroundings (retinex-style): each spot is compared with a heavily
+// blurred copy, not with the whole frame. A face in front of a bright wall, which the camera
+// exposes for the wall, comes up to a readable level and keeps its features; flat areas settle
+// in the middle. Presence decides how much of this replaces the plain image.
+float cameraLumaLocal(vec2 uv, float lod) {
+  float plain = clamp(cameraLumaDetail(uv, lod), 0.0, 1.0);
+  float surround = cameraLuma(uv, lod + 4.5);
+  float balanced = clamp(0.42 * (plain + 0.03) / (surround + 0.03), 0.0, 1.0);
+  return mix(plain, balanced, mix(0.05, 0.3, u_cameraPresence));
+}
+
 vec3 render(vec2 uv, vec2 p);
 `;
 

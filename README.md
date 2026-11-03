@@ -52,7 +52,7 @@ Point a camera at yourself and the decks, and four more scenes put you into the 
 | Scene | Look | Energy |
 | --- | --- | --- |
 | Halftone | the camera as a rotated grid of palette-coloured dots; beats swell them | low to high |
-| Glyphs | falling columns of symbols; where the camera is bright, you appear inside the rain | mid to high |
+| Glyphs | falling columns of symbols, each lit like the camera image at its place, so you appear inside the rain | mid to high |
 | Neon edges | glowing outlines of whatever the camera sees, over a dim copy of the image | mid to peak |
 | Glitch | palette-mapped camera, colour fringes on the bass, slices that slip on the kick | high to peak |
 
