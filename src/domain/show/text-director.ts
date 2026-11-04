@@ -1,5 +1,12 @@
 import type { Section } from '../rhythm/section-tracker';
-import type { TextCue, TextMessage, TextStyle, TextStyleChoice } from './texts';
+import {
+  messageContent,
+  type TextContent,
+  type TextCue,
+  type TextMessage,
+  type TextStyle,
+  type TextStyleChoice,
+} from './texts';
 
 /** How a text enters and moves while it is on screen. Each cue has its own. */
 export type TextMotion = 'slam' | 'type' | 'drift' | 'wave';
@@ -11,8 +18,7 @@ export const CUE_MOTION: Record<TextCue, TextMotion> = {
   groove: 'wave',
 };
 
-/** A message, or the DJ name and logo (the "mark"). */
-export type TextContent = { kind: 'text'; text: string } | { kind: 'mark' };
+export type { TextContent } from './texts';
 
 export interface TextDirectorInput {
   /** Texts are switched on. Off: whatever shows leaves. */
@@ -23,8 +29,8 @@ export interface TextDirectorInput {
   /** Beat length in seconds (an assumed one without a tempo): text timing is in beats. */
   beatSec: number;
   messages: readonly TextMessage[];
-  /** The name/logo mark joins the drop and groove texts. */
-  mark: boolean;
+  /** Ids of the images that are stored and can be drawn; entries with any other image wait. */
+  images: ReadonlySet<string>;
   /** Text style of the scene on screen, after this frame's scene change. */
   sceneStyle: TextStyle;
   styleChoice: TextStyleChoice;
@@ -84,7 +90,7 @@ interface Showing {
 }
 
 /**
- * Decides which text is on screen, when, and how it moves. It follows the music like the scene
+ * Decides which text (or image) is on screen, when, and how it moves. It follows the music like the scene
  * director: a slam on the drop, letters typed out over the build-up, a slow drift into the
  * breakdown, and now and then a wave in the groove. Each cue rotates through its own texts.
  */
@@ -132,8 +138,15 @@ export class TextDirector {
     const index = this.requested;
     this.requested = null;
     const message = index === null ? undefined : input.messages[index];
-    if (!message || message.text.trim() === '') return;
-    this.start({ kind: 'text', text: message.text.trim() }, message.cue, input, true);
+    const content = message && this.showable(message, input);
+    if (message && content) this.start(content, message.cue, input, true);
+  }
+
+  /** What an entry would show, if it can be shown now (its image may be missing). */
+  private showable(message: TextMessage, input: TextDirectorInput): TextContent | null {
+    const content = messageContent(message);
+    if (content?.kind === 'image' && !input.images.has(content.imageId)) return null;
+    return content;
   }
 
   private followMusic(dtSec: number, beats: number, input: TextDirectorInput): void {
@@ -174,13 +187,12 @@ export class TextDirector {
     this.start(content, cue, input, false);
   }
 
-  /** The texts of a cue in rotation order: the mark first (drops and grooves), then messages. */
+  /** The entries of a cue that can be shown, in list order. */
   private pool(cue: TextCue, input: TextDirectorInput): TextContent[] {
     const pool: TextContent[] = [];
-    if (input.mark && (cue === 'drop' || cue === 'groove')) pool.push({ kind: 'mark' });
     for (const message of input.messages) {
-      const text = message.text.trim();
-      if (message.cue === cue && text !== '') pool.push({ kind: 'text', text });
+      const content = message.cue === cue ? this.showable(message, input) : null;
+      if (content) pool.push(content);
     }
     return pool;
   }

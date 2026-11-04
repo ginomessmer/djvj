@@ -8,19 +8,18 @@ import {
   PREVIEW_WATCH_SEC,
   type PreviewFrame,
 } from '@/domain/remote/preview';
-import { MAX_LOGO_DATA_URL_LENGTH, type ShowSnapshot } from '@/domain/remote/protocol';
+import { MAX_IMAGE_DATA_URL_LENGTH, type ShowSnapshot } from '@/domain/remote/protocol';
 import { type RhythmState, RhythmTracker } from '@/domain/rhythm/rhythm-tracker';
 import { type Section, SectionTracker } from '@/domain/rhythm/section-tracker';
 import { FlashGuard } from '@/domain/safety/flash-guard';
 import type { Director, DirectorFrame } from '@/domain/show/director';
-import { type OverlayFrame, OverlayScheduler } from '@/domain/show/overlay-scheduler';
 import { PaletteRotation } from '@/domain/show/palette-rotation';
 import { findPalette, nextPalette } from '@/domain/show/palettes';
 import { type SceneId, sceneTextStyle } from '@/domain/show/scenes';
 import { TextDirector, type TextFrame } from '@/domain/show/text-director';
 import { HIDDEN_LOOK, type TextLook, textLook } from '@/domain/show/text-motion';
-import { displayText, glyphCount } from '@/domain/show/texts';
-import type { LogoStorage } from '@/services/logo-storage';
+import { displayText, glyphCount, IMAGE_ID_PATTERN } from '@/domain/show/texts';
+import type { ImageStorage } from '@/services/image-storage';
 import type { Stage } from '@/vfx/stage';
 import type { AudioPipeline } from '../audio/audio-pipeline';
 import type { CameraPipeline } from '../camera/camera-pipeline';
@@ -33,7 +32,7 @@ export interface OutputRuntimeDeps {
   audio: AudioPipeline;
   camera: CameraPipeline;
   director: Director;
-  logoStorage: LogoStorage;
+  imageStorage: ImageStorage;
 }
 
 const SNAPSHOT_INTERVAL_SEC = 0.1;
@@ -75,7 +74,6 @@ export class OutputRuntime {
   private readonly rhythmTracker = new RhythmTracker();
   private readonly sectionTracker = new SectionTracker();
   private readonly paletteRotation = new PaletteRotation();
-  private readonly overlayScheduler = new OverlayScheduler();
   private readonly textDirector = new TextDirector();
   private readonly flashGuard = new FlashGuard();
   private readonly governor = new ResolutionGovernor();
@@ -83,10 +81,11 @@ export class OutputRuntime {
   private rhythm: RhythmState = NO_RHYTHM;
   private section: Section = 'quiet';
   private shownSceneId: SceneId;
-  private overlay: OverlayFrame = { opacity: 0 };
   private text: TextFrame | null = null;
   private textLook: TextLook = HIDDEN_LOOK;
-  private logoUrl: string;
+  /** Images of the text list by id, kept in memory: also those storage had no room for. */
+  private readonly images = new Map<string, string>();
+  private imageIds: ReadonlySet<string> = new Set();
   private calm = 0;
   private resolution: [number, number] = [0, 0];
   private flow = 0;
@@ -100,11 +99,19 @@ export class OutputRuntime {
   constructor(private readonly deps: OutputRuntimeDeps) {
     const { store, audio, camera } = deps;
     this.shownSceneId = store.getState().sceneId;
-    this.logoUrl = deps.logoStorage.load();
+    for (const id of deps.imageStorage.ids()) {
+      const dataUrl = deps.imageStorage.load(id);
+      if (dataUrl) this.images.set(id, dataUrl);
+    }
+    this.forgetUnusedImages();
 
     audio.onChange = () => this.publish();
     camera.onChange = () => this.publish();
     store.subscribe(() => this.publish());
+    store.subscribe(
+      (state) => state.texts,
+      () => this.forgetUnusedImages(),
+    );
     store.subscribe(
       (state) => state.silenceDb,
       (silenceDb) => audio.setSilenceThreshold(silenceDb),
@@ -165,17 +172,22 @@ export class OutputRuntime {
     this.publish();
   }
 
-  /** Sets (or with '' removes) the overlay logo. Anything that is not a sane image is ignored. */
-  setLogo(dataUrl: string): void {
+  /**
+   * Stores the image of a list entry. The control window sends it just before the entry that
+   * refers to it. Anything that is not a sane image under a sane id is ignored.
+   */
+  setImage(id: string, dataUrl: string): void {
     const valid =
-      dataUrl === '' ||
-      (dataUrl.startsWith('data:image/') && dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH);
+      IMAGE_ID_PATTERN.test(id) &&
+      dataUrl.startsWith('data:image/') &&
+      dataUrl.length <= MAX_IMAGE_DATA_URL_LENGTH;
     if (!valid) {
-      console.warn('[djvj] ignored an invalid logo');
+      console.warn('[djvj] ignored an invalid image');
       return;
     }
-    this.logoUrl = dataUrl;
-    this.deps.logoStorage.save(dataUrl);
+    this.images.set(id, dataUrl);
+    this.imageIds = new Set(this.images.keys());
+    this.deps.imageStorage.save(id, dataUrl); // without room it still shows until a reload
     this.publish();
   }
 
@@ -240,7 +252,7 @@ export class OutputRuntime {
         source: rhythm.source,
       },
       safety: { flashGuard: this.calm, resolutionScale: this.governor.scale },
-      overlay: { hasLogo: this.logoUrl !== '', opacity: this.overlay.opacity },
+      images: [...this.images.keys()],
       text: this.textSnapshot(),
       shownSceneId: this.shownSceneId,
       performance: {
@@ -297,7 +309,6 @@ export class OutputRuntime {
       (blackoutTarget - this.blackoutLevel) * Math.min(1, dtSec * BLACKOUT_EASING_PER_SEC);
     const pulse = live ? this.pulse(view.kick) * (1 - FLASH_GUARD.pulseDamping * this.calm) : 0;
 
-    const hasMark = show.overlayName.trim() !== '' || this.logoUrl !== '';
     const beatSec = this.rhythm.bpm > 0 ? 60 / this.rhythm.bpm : FALLBACK_BEAT_SEC;
     this.text = this.textDirector.update(dtSec, {
       enabled: show.textsOn,
@@ -305,7 +316,7 @@ export class OutputRuntime {
       section: this.section,
       beatSec,
       messages: show.texts,
-      mark: show.overlayMode === 'reveal' && hasMark,
+      images: this.imageIds,
       sceneStyle: sceneTextStyle(frame.toId),
       styleChoice: show.textStyle,
     });
@@ -317,12 +328,6 @@ export class OutputRuntime {
           highs: Math.max(view.bands[3], view.bands[4]),
         })
       : HIDDEN_LOOK;
-
-    this.overlay = this.overlayScheduler.update(dtSec, {
-      mode: show.overlayMode,
-      hasContent: hasMark,
-      headline: this.textLook.opacity > 0,
-    });
 
     const resolutionScale = this.governor.update(dtSec, show.adaptiveResolution);
     this.resolution = stage.resize(show.renderScale, resolutionScale);
@@ -341,8 +346,12 @@ export class OutputRuntime {
           (1 - FLASH_GUARD.dimming * this.calm),
         camera: { video: camera.video, mirror: show.cameraMirror },
       },
-      { name: show.overlayName, logoUrl: this.logoUrl, opacity: this.overlay.opacity },
-      { content, style: this.text.style, look: this.textLook },
+      {
+        content,
+        imageUrl: content?.kind === 'image' ? (this.images.get(content.imageId) ?? '') : '',
+        style: this.text.style,
+        look: this.textLook,
+      },
     );
 
     this.forwardPreview(tSec);
@@ -353,14 +362,34 @@ export class OutputRuntime {
     }
   }
 
-  /** What text is on screen, for the control window. */
+  /** What is on screen, for the control window: the text as drawn, or the image's label. */
   private textSnapshot(): ShowSnapshot['text'] {
-    const content = this.text?.content;
-    if (!content || this.textLook.opacity <= 0 || !this.text) return { showing: null, style: null };
-    const name = this.deps.store.getState().overlayName.trim();
-    const showing =
-      content.kind === 'text' ? displayText(content.text, this.text.style) : name || 'Logo';
-    return { showing, style: this.text.style };
+    const { text } = this;
+    const content = text?.content;
+    if (!text || !content || this.textLook.opacity <= 0) {
+      return { showing: null, kind: null, style: null };
+    }
+    if (content.kind === 'text') {
+      return { showing: displayText(content.text, text.style), kind: 'text', style: text.style };
+    }
+    const entry = this.deps.store
+      .getState()
+      .texts.find((message) => message.imageId === content.imageId);
+    return { showing: entry?.text || 'Image', kind: 'image', style: text.style };
+  }
+
+  /** Images no entry refers to any more are dropped, from memory and from storage. */
+  private forgetUnusedImages(): void {
+    const used = new Set(this.deps.store.getState().texts.map((message) => message.imageId));
+    for (const id of [...this.images.keys()]) {
+      if (used.has(id)) continue;
+      this.images.delete(id);
+      this.deps.imageStorage.remove(id);
+    }
+    for (const id of this.deps.imageStorage.ids()) {
+      if (!used.has(id)) this.deps.imageStorage.remove(id);
+    }
+    this.imageIds = new Set(this.images.keys());
   }
 
   private forwardPreview(tSec: number): void {

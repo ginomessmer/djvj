@@ -28,19 +28,12 @@ export interface FrameParams {
   };
 }
 
-/** The DJ name / logo mark. Small in the corner, or as a headline (`TextParams`, kind 'mark'). */
-export interface OverlayParams {
-  name: string;
-  /** Image data URL, or '' for none. */
-  logoUrl: string;
-  /** Opacity of the corner mark. */
-  opacity: number;
-}
-
-/** The headline text in the middle of the screen, styled with the scene behind it. */
+/** The headline text or image in the middle of the screen, styled with the scene behind it. */
 export interface TextParams {
-  /** Null: no text. */
+  /** Null: nothing. */
   content: TextContent | null;
+  /** The image's data URL when the content is an image, else ''. */
+  imageUrl: string;
   style: TextStyle;
   look: TextLook;
 }

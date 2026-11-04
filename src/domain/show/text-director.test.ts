@@ -21,7 +21,7 @@ function input(overrides: Partial<TextDirectorInput> = {}): TextDirectorInput {
     section: 'groove',
     beatSec: BEAT_SEC,
     messages: MESSAGES,
-    mark: false,
+    images: new Set(['logo']),
     sceneStyle: 'neon',
     styleChoice: 'auto',
     ...overrides,
@@ -35,8 +35,11 @@ function run(director: TextDirector, seconds: number, overrides: Partial<TextDir
   return frames;
 }
 
-const shown = (frame: TextFrame | undefined) =>
-  frame?.content?.kind === 'text' ? frame.content.text : (frame?.content?.kind ?? null);
+const shown = (frame: TextFrame | undefined) => {
+  const content = frame?.content;
+  if (!content) return null;
+  return content.kind === 'text' ? content.text : `image:${content.imageId}`;
+};
 
 /** Plays a groove, then the given section, and returns the frames of that section. */
 function enter(director: TextDirector, section: Section, seconds: number, extra = {}) {
@@ -107,11 +110,26 @@ describe('TextDirector', () => {
     expect(next.at(-1)?.motion).toBe('wave');
   });
 
-  it('puts the name and logo mark first among the drop and groove texts', () => {
+  it('rotates images with the texts of their moment', () => {
     const director = new TextDirector();
-    expect(shown(enter(director, 'drop', 0.1, { mark: true })[0])).toBe('mark');
-    run(director, 10, { mark: true });
-    expect(shown(enter(director, 'drop', 0.1, { mark: true })[0])).toBe('MAKE SOME NOISE');
+    const messages: TextMessage[] = [
+      { text: 'logo', cue: 'drop', imageId: 'logo' },
+      { text: 'MAKE SOME NOISE', cue: 'drop' },
+    ];
+    expect(shown(enter(director, 'drop', 0.1, { messages })[0])).toBe('image:logo');
+    run(director, 10, { messages });
+    expect(shown(enter(director, 'drop', 0.1, { messages })[0])).toBe('MAKE SOME NOISE');
+  });
+
+  it('skips an image that is not stored, also when fired by hand', () => {
+    const director = new TextDirector();
+    const messages: TextMessage[] = [
+      { text: 'gone', cue: 'drop', imageId: 'gone' },
+      { text: 'HANDS UP', cue: 'drop' },
+    ];
+    expect(shown(enter(director, 'drop', 0.1, { messages })[0])).toBe('HANDS UP');
+    director.request(0);
+    expect(shown(run(director, 0.1, { messages, section: 'groove' })[0])).toBe('HANDS UP');
   });
 
   it('keeps the style it started with, even when the scene changes', () => {

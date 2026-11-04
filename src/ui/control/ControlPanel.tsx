@@ -6,7 +6,6 @@ import { AppearanceDialog } from './AppearanceDialog';
 import { AudioInputPanel } from './AudioInputPanel';
 import { CameraPanel } from './CameraPanel';
 import { OutputPanel } from './OutputPanel';
-import { OverlayPanel } from './OverlayPanel';
 import { PreviewPanel } from './PreviewPanel';
 import { RhythmPanel } from './RhythmPanel';
 import { ScenesPanel } from './ScenesPanel';
@@ -23,8 +22,7 @@ export interface ControlActions {
   onRefreshDevices: () => void;
   onTap: () => void;
   onClearTap: () => void;
-  onLogoFile: (file: File) => void;
-  onRemoveLogo: () => void;
+  onAddImage: (file: File) => void;
   onShowText: (index: number) => void;
 }
 
@@ -43,6 +41,8 @@ interface ControlPanelProps extends ControlActions {
   onResetPreferences: () => void;
   dialog: DialogName | null;
   onDialog: (dialog: DialogName | null) => void;
+  /** Thumbnails of the text list's images by id. */
+  thumbnails: Readonly<Record<string, string>>;
 }
 
 /**
@@ -62,6 +62,7 @@ export function ControlPanel({
   onResetPreferences,
   dialog,
   onDialog,
+  thumbnails,
   ...actions
 }: ControlPanelProps) {
   const { onPatch } = actions;
@@ -128,8 +129,11 @@ export function ControlPanel({
               <TextsPanel
                 show={snapshot.show}
                 text={snapshot.text}
+                images={snapshot.images}
+                thumbnails={thumbnails}
                 onPatch={onPatch}
                 onShowText={actions.onShowText}
+                onAddImage={actions.onAddImage}
               />
               <SignalPanel signal={snapshot.signal} />
             </div>
@@ -151,13 +155,6 @@ export function ControlPanel({
                 performance={snapshot.performance}
                 safety={snapshot.safety}
                 onPatch={onPatch}
-              />
-              <OverlayPanel
-                show={snapshot.show}
-                overlay={snapshot.overlay}
-                onPatch={onPatch}
-                onLogoFile={actions.onLogoFile}
-                onRemoveLogo={actions.onRemoveLogo}
               />
             </div>
           </>
