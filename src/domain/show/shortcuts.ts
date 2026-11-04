@@ -1,25 +1,39 @@
 import { nextPalette } from './palettes';
-import { nextSceneId, type SceneId, SELECTABLE_SCENE_IDS } from './scenes';
+import { nextSceneId, type SceneId, SELECTABLE_SCENES } from './scenes';
 import type { ShowPatch, ShowState } from './show-state';
 
 /**
- * Keys 1..9 and 0 pick the ten generated scenes, Q W E R (the row below) the camera scenes; both
- * in the same order as the pads.
+ * Keys 1..9 and 0 pick the first ten generated scenes and G H J (the same on QWERTY and QWERTZ)
+ * the ones after them; Q W E R pick the camera scenes. All in the same order as the pads. Each
+ * group has its own keys, so a new generated scene never moves the camera keys.
  */
-const SCENE_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'q', 'w', 'e', 'r'] as const;
+const GENERATED_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'g', 'h', 'j'] as const;
+const CAMERA_KEYS = ['q', 'w', 'e', 'r'] as const;
+
+const SCENE_BY_KEY: ReadonlyMap<string, SceneId> = new Map([
+  ...zipKeys(GENERATED_KEYS, (scene) => !scene.camera),
+  ...zipKeys(CAMERA_KEYS, (scene) => scene.camera),
+]);
+
+function zipKeys(
+  keys: readonly string[],
+  include: (scene: (typeof SELECTABLE_SCENES)[number]) => boolean,
+): [string, SceneId][] {
+  return SELECTABLE_SCENES.filter(include)
+    .slice(0, keys.length)
+    .map((scene, index) => [keys[index], scene.id]);
+}
 
 export function sceneKey(sceneId: SceneId): string | null {
-  return SCENE_KEYS[SELECTABLE_SCENE_IDS.indexOf(sceneId)]?.toUpperCase() ?? null;
+  for (const [key, id] of SCENE_BY_KEY) if (id === sceneId) return key.toUpperCase();
+  return null;
 }
 
 /** Single-key actions, shared by the output and control windows. `null` = not a shortcut. */
 export function shortcutPatch(key: string, show: ShowState): ShowPatch | null {
   const lower = key.toLowerCase();
-  const sceneIndex = SCENE_KEYS.indexOf(lower as (typeof SCENE_KEYS)[number]);
-  if (sceneIndex >= 0) {
-    const sceneId = SELECTABLE_SCENE_IDS[sceneIndex];
-    return sceneId ? lockScene(sceneId) : null;
-  }
+  const sceneId = SCENE_BY_KEY.get(lower);
+  if (sceneId) return lockScene(sceneId);
   switch (lower) {
     case 'a':
       return { auto: !show.auto };
@@ -79,6 +93,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     title: 'Scenes and colours',
     shortcuts: [
       { keys: ['1', '…', '0'], action: 'Pick scene 1 to 10 (locks it)', where: 'both' },
+      { keys: ['G', 'H', 'J'], action: 'Pick scene 11 to 13 (locks it)', where: 'both' },
       { keys: ['Q', 'W', 'E', 'R'], action: 'Pick a camera scene (locks it)', where: 'both' },
       { keys: ['N'], action: 'Next scene (locks it)', where: 'both' },
       { keys: ['A'], action: 'Auto-rotate scenes on or off', where: 'both' },

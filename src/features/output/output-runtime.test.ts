@@ -79,7 +79,7 @@ describe('OutputRuntime', () => {
     runFrames(runtime, 60.5 - t, t); // the demo drops at 60 s
     const { sceneId, frame } = lastDraw(stage);
     expect(runtime.getSnapshot().rhythm.section).toBe('drop');
-    expect(['tunnel', 'starfield', 'lasers']).toContain(sceneId);
+    expect(['tunnel', 'starfield', 'lasers', 'rig']).toContain(sceneId);
     expect(frame.intensity).toBeGreaterThan(0.9); // a cut, not a fade
   });
 

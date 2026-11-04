@@ -15,6 +15,9 @@ export const SCENE_IDS = [
   'tunnel',
   'starfield',
   'lasers',
+  'deco',
+  'voxels',
+  'rig',
   'halftone',
   'glyphs',
   'neon',
@@ -38,8 +41,9 @@ export interface SceneInfo {
 }
 
 /**
- * Ordered from calm to intense, which is also the order of the control panel; the camera scenes
- * come last, so the number keys of the others stay the same.
+ * Ordered from calm to intense, which is also the order of the control panel. Scenes added after
+ * the first ten come after them (calm to intense among themselves) and the camera scenes last, so
+ * the keys of the earlier ones stay the same.
  */
 export const SCENES: readonly SceneInfo[] = [
   { id: 'aurora', name: 'Aurora', energy: [0, 0.4], selectable: true, camera: false },
@@ -52,6 +56,9 @@ export const SCENES: readonly SceneInfo[] = [
   { id: 'tunnel', name: 'Tunnel', energy: [0.4, 1], selectable: true, camera: false },
   { id: 'starfield', name: 'Starfield', energy: [0.5, 1], selectable: true, camera: false },
   { id: 'lasers', name: 'Lasers', energy: [0.6, 1], selectable: true, camera: false },
+  { id: 'deco', name: 'Art deco', energy: [0.1, 0.65], selectable: true, camera: false },
+  { id: 'voxels', name: 'Voxels', energy: [0.25, 0.85], selectable: true, camera: false },
+  { id: 'rig', name: 'Light rig', energy: [0.55, 1], selectable: true, camera: false },
   { id: 'halftone', name: 'Halftone', energy: [0.2, 0.7], selectable: true, camera: true },
   { id: 'glyphs', name: 'Glyphs', energy: [0.35, 0.9], selectable: true, camera: true },
   { id: 'neon', name: 'Neon edges', energy: [0.3, 0.95], selectable: true, camera: true },
@@ -80,6 +87,9 @@ const SCENE_TEXT_STYLES: Record<SceneId, TextStyle> = {
   tunnel: 'neon',
   starfield: 'chrome',
   lasers: 'neon',
+  deco: 'chrome',
+  voxels: 'glass',
+  rig: 'neon',
   halftone: 'invert',
   glyphs: 'glitch',
   neon: 'neon',
