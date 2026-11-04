@@ -25,6 +25,8 @@ export interface FrameParams {
     video: HTMLVideoElement | null;
     /** Mirror it like a selfie. */
     mirror: boolean;
+    /** 0..1: how strongly camera scenes show the camera. */
+    presence: number;
   };
 }
 

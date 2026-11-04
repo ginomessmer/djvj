@@ -29,6 +29,7 @@ uniform sampler2D u_camera;     // live camera frame, with mipmaps
 uniform float u_cameraOn;       // 0..1: eases in when frames arrive, out when the camera goes
 uniform vec2  u_cameraRes;      // camera frame size in pixels
 uniform float u_cameraMirror;   // 1 = mirrored like a selfie
+uniform float u_cameraPresence; // 0..1: how strongly camera scenes show the camera (DJ's setting)
 
 // Smoothly cycle through the four palette colours: t wraps at 1.
 vec3 pal(float t) {
@@ -92,17 +93,44 @@ float cameraStandIn(vec2 uv) {
 }
 
 // Camera colour at screen uv. lod > 0 blurs (a mip level): smooths out sensor noise in the dark.
-// Auto gain lifts a dark booth to a usable level (from the mean of the frame, its smallest mip).
+// Auto gain lifts a dark booth to a usable level (from the mean of the frame, its smallest mip);
+// highlights roll off instead of clipping, so a face lit by an LED keeps its eyes and mouth.
 vec3 cameraColor(vec2 uv, float lod) {
   vec3 frame = textureLod(u_camera, cameraUv(uv), lod).rgb;
   vec3 mean = textureLod(u_camera, vec2(0.5), 16.0).rgb;
   float gain = clamp(0.42 / max(dot(mean, vec3(0.2126, 0.7152, 0.0722)), 0.02), 1.0, 5.0);
-  vec3 live = clamp(frame * gain, 0.0, 1.0);
+  vec3 live = 1.0 - exp(-1.6 * frame * gain);
   return mix(vec3(cameraStandIn(uv)), live, u_cameraOn);
 }
 
 float cameraLuma(vec2 uv, float lod) {
   return dot(cameraColor(uv, lod), vec3(0.2126, 0.7152, 0.0722));
+}
+
+// Stretches a camera value around the frame's mean (~0.45 after auto gain): darker parts drop
+// away, lit parts stand out. More presence, more contrast, so the DJ reads from across the room.
+float cameraContrast(float luma) {
+  return clamp(0.45 + (luma - 0.45) * mix(1.0, 2.0, u_cameraPresence), 0.0, 1.0);
+}
+
+// Luma with local detail boosted (an unsharp mask: the image minus a blurred copy). Eyes,
+// headphones and the edge of a jog wheel are local differences; this keeps them readable when a
+// scene breaks the image into dots or symbols. More presence, more detail.
+float cameraLumaDetail(vec2 uv, float lod) {
+  float sharp = cameraLuma(uv, lod);
+  float soft = cameraLuma(uv, lod + 3.0);
+  return sharp + (sharp - soft) * mix(0.6, 2.2, u_cameraPresence);
+}
+
+// Luma balanced against its surroundings (retinex-style): each spot is compared with a heavily
+// blurred copy, not with the whole frame. A face in front of a bright wall, which the camera
+// exposes for the wall, comes up to a readable level and keeps its features; flat areas settle
+// in the middle. Presence decides how much of this replaces the plain image.
+float cameraLumaLocal(vec2 uv, float lod) {
+  float plain = clamp(cameraLumaDetail(uv, lod), 0.0, 1.0);
+  float surround = cameraLuma(uv, lod + 4.5);
+  float balanced = clamp(0.42 * (plain + 0.03) / (surround + 0.03), 0.0, 1.0);
+  return mix(plain, balanced, mix(0.05, 0.3, u_cameraPresence));
 }
 
 vec3 render(vec2 uv, vec2 p);

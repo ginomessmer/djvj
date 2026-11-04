@@ -344,7 +344,7 @@ export class OutputRuntime {
           frame.brightness *
           this.blackoutLevel *
           (1 - FLASH_GUARD.dimming * this.calm),
-        camera: { video: camera.video, mirror: show.cameraMirror },
+        camera: { video: camera.video, mirror: show.cameraMirror, presence: show.cameraPresence },
       },
       {
         content,

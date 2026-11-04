@@ -21,7 +21,7 @@ vec3 render(vec2 uv, vec2 p) {
 
   vec3 glow = pal(uv.y * 0.5 - uv.x * 0.2 + u_flow * 0.04) * edge;
   glow *= 0.9 + 0.5 * u_bands[3] + 0.3 * u_energy;
-  vec3 image = cameraColor(uv, 3.0) * 0.1 * (0.6 + 0.4 * u_bands[1]);
+  vec3 image = cameraColor(uv, 3.0) * (0.04 + 0.12 * u_cameraPresence) * (0.6 + 0.4 * u_bands[1]);
   vec3 haze = pal(fbm(p * 1.4 + u_flow * 0.05) + 0.3) * 0.05;
   return haze + image + glow * 1.3;
 }

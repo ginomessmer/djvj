@@ -104,6 +104,7 @@ export class Stage {
     u_cameraOn: { value: 0 },
     u_cameraRes: { value: new THREE.Vector2(16, 9) },
     u_cameraMirror: { value: 0 },
+    u_cameraPresence: { value: 0.6 },
   };
 
   private readonly compositeUniforms = {
@@ -356,7 +357,11 @@ export class Stage {
    * Keeps the camera texture on the current video and fades it in and out. A camera that goes
    * away fades out on its last frame, then its texture is released.
    */
-  private applyCamera({ video, mirror }: FrameParams['camera'], time: number, dtSec: number): void {
+  private applyCamera(
+    { video, mirror, presence }: FrameParams['camera'],
+    time: number,
+    dtSec: number,
+  ): void {
     const uniforms = this.sceneUniforms;
     if (video && this.cameraTexture?.image !== video) {
       this.cameraTexture?.dispose();
@@ -384,6 +389,7 @@ export class Stage {
     const on = uniforms.u_cameraOn.value + (target - uniforms.u_cameraOn.value) * fade;
     uniforms.u_cameraOn.value = on < 0.002 && target === 0 ? 0 : on;
     uniforms.u_cameraMirror.value = mirror ? 1 : 0;
+    uniforms.u_cameraPresence.value = presence;
 
     if (!video && texture && uniforms.u_cameraOn.value === 0) {
       texture.dispose();

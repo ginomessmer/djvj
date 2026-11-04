@@ -19,7 +19,8 @@ vec3 render(vec2 uv, vec2 p) {
   float lg = cameraLuma(q, 1.0);
   float lb = cameraLuma(q - vec2(split, 0.0), 1.0);
 
-  float level = floor(lg * 6.0 + 0.5) / 6.0;                 // posterised
+  float steps = mix(4.0, 9.0, u_cameraPresence);              // more presence, more detail
+  float level = floor(lg * steps + 0.5) / steps;              // posterised
   vec3 col = pal(level * 0.75 + u_flow * 0.02) * (0.1 + 1.05 * lg);
   col += vec3(max(lr - lg, 0.0), 0.0, max(lb - lg, 0.0)) * 1.6;  // red/blue fringes
 
