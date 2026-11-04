@@ -4,10 +4,10 @@ import { createTestRuntime, runFrames } from '../test-utils';
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** Arguments of the most recent `stage.render` call: the scene mix, frame, overlay and text. */
+/** Arguments of the most recent `stage.render` call: the scene mix, frame and text. */
 function lastDraw(stage: { render: ReturnType<typeof vi.fn> }) {
-  const [mix, frame, overlay, text] = stage.render.mock.calls.at(-1) ?? [];
-  return { sceneId: mix?.toId, mix, frame, overlay, text };
+  const [mix, frame, text] = stage.render.mock.calls.at(-1) ?? [];
+  return { sceneId: mix?.toId, mix, frame, text };
 }
 
 describe('OutputRuntime', () => {
@@ -135,18 +135,6 @@ describe('OutputRuntime', () => {
     }
   });
 
-  it('shows the overlay when there is something to show', () => {
-    const { runtime, store, stage } = createTestRuntime();
-    store.getState().apply({ overlayMode: 'corner' });
-    runFrames(runtime, 3);
-    expect(lastDraw(stage).overlay.opacity).toBe(0); // no name, no logo
-
-    store.getState().apply({ overlayName: 'DJ Test' });
-    runFrames(runtime, 3, 4);
-    expect(lastDraw(stage).overlay).toMatchObject({ name: 'DJ Test' });
-    expect(lastDraw(stage).overlay.opacity).toBeGreaterThan(0.5);
-  });
-
   it('slams a drop text in on the demo drop, in the style of the scene it cuts to', () => {
     const { runtime, store, stage } = createTestRuntime();
     store.getState().apply({
@@ -183,27 +171,36 @@ describe('OutputRuntime', () => {
     expect(runtime.getSnapshot().text.showing).toBeNull();
   });
 
-  it('shows the name as a big mark in reveal mode, and the corner steps aside for texts', () => {
-    const { runtime, store, stage } = createTestRuntime();
-    store.getState().apply({ overlayName: 'DJ Test', overlayMode: 'corner' });
-    store.getState().apply({ texts: [{ text: 'HANDS UP', cue: 'drop' }] });
-    runFrames(runtime, 3);
-    expect(lastDraw(stage).overlay.opacity).toBeGreaterThan(0.5);
+  it('stores a valid image, draws it as an entry, and keeps it out of the snapshot', () => {
+    const { runtime, store, stage, stored } = createTestRuntime();
+    const webp = 'data:image/webp;base64,UklGRhoAAABXRUJQ';
+    runtime.setImage('logo-1', webp);
+    runtime.setImage('../escape', webp);
+    runtime.setImage('logo-2', 'javascript:alert(1)');
+    runtime.setImage('logo-3', `data:image/png;base64,${'A'.repeat(3_000_001)}`);
+    expect([...stored.keys()]).toEqual(['logo-1']);
+
+    store.getState().apply({ texts: [{ text: 'my logo', cue: 'drop', imageId: 'logo-1' }] });
     runtime.showText(0);
-    runFrames(runtime, 2, 4);
-    expect(lastDraw(stage).overlay.opacity).toBe(0);
+    runFrames(runtime, 1);
+    expect(lastDraw(stage).text).toMatchObject({
+      content: { kind: 'image', imageId: 'logo-1' },
+      imageUrl: webp,
+    });
+    const snapshot = runtime.getSnapshot();
+    expect(snapshot.images).toEqual(['logo-1']);
+    expect(snapshot.text).toMatchObject({ showing: 'my logo', kind: 'image' });
+    expect(JSON.stringify(snapshot)).not.toContain('UklGR');
   });
 
-  it('stores a valid logo, keeps it out of the snapshot and ignores anything else', () => {
-    const { runtime, logos } = createTestRuntime();
-    const png = 'data:image/png;base64,iVBORw0KGgo=';
-    runtime.setLogo(png);
-    runtime.setLogo('javascript:alert(1)');
-    runtime.setLogo(`data:image/png;base64,${'A'.repeat(3_000_001)}`);
-    expect(logos).toEqual([png]);
-    const snapshot = runtime.getSnapshot();
-    expect(snapshot.overlay.hasLogo).toBe(true);
-    expect(JSON.stringify(snapshot)).not.toContain('iVBORw0KGgo');
+  it('forgets an image once no entry refers to it', () => {
+    const { runtime, store, stored } = createTestRuntime();
+    runtime.setImage('a', 'data:image/webp;base64,AAAA');
+    store.getState().apply({ texts: [{ text: 'a', cue: 'drop', imageId: 'a' }] });
+    expect(stored.has('a')).toBe(true);
+    store.getState().apply({ texts: [] });
+    expect(stored.has('a')).toBe(false);
+    expect(runtime.getSnapshot().images).toEqual([]);
   });
 
   it('takes a tapped tempo', () => {

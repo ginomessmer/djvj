@@ -12,7 +12,12 @@ export const HEADLINE_ASPECT = WIDTH / HEIGHT;
 export const MAX_GLYPHS = MAX_TEXT_LENGTH;
 /** Room around the letters for the glow, which is read from blurred mip levels. */
 const PAD_X = 120;
+/** Room above and below an image. */
+const PAD_Y = 64;
 const MAX_TEXT_PX = 250;
+/** Outline width of an image, in texture pixels. */
+const OUTLINE_PX = 7;
+const MAX_CACHED_IMAGES = 16;
 
 interface Face {
   /** A CSS font for a size in px. Only system fonts: the show runs offline. */
@@ -57,8 +62,9 @@ const FACES: Record<TextStyle, Face> = {
 export type GlyphEdges = number[];
 
 /**
- * Draws a headline text (or the name and logo mark) into a texture the composite shader styles.
- * Channels, not colours: red is the fill, green the outline, blue the detail inside a logo. The
+ * Draws a headline text or image into a texture the composite shader styles. Channels, not
+ * colours: red is the fill, green the outline, blue the detail (how bright that part of an image
+ * is; a text's is full). The
  * shader reads blurred mip levels for glow and refraction, so letters stay crisp and the halo
  * follows each letter as it moves.
  */
@@ -67,8 +73,8 @@ export class HeadlineTexture {
   private readonly canvas: HTMLCanvasElement;
   private drawnKey = '';
   private edges: GlyphEdges = [0, 1];
-  private logo: HTMLImageElement | null = null;
-  private logoUrl = '';
+  /** Decoded images by data URL, so showing one again is instant. */
+  private readonly images = new Map<string, HTMLImageElement>();
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -81,17 +87,19 @@ export class HeadlineTexture {
   }
 
   /**
-   * Redraws only when something changed. The text is drawn in the face of its style, so a new
-   * style redraws too.
-   * @returns where the letters are: one more entry than letters
+   * Redraws only when something changed. A text is drawn in the face of its style, so a new style
+   * redraws too. An image draws once it has decoded (a frame or two after its first use).
+   * @returns where the letters are: one more entry than letters (an image is one)
    */
-  update(content: TextContent, style: TextStyle, name: string, logoUrl: string): GlyphEdges {
-    if (logoUrl !== this.logoUrl) this.loadLogo(logoUrl);
-    const what = content.kind === 'text' ? `t:${content.text}` : `m:${name}:${this.logoUrl}`;
-    const key = `${what}\u0000${style}\u0000${this.logo ? 'logo' : ''}`;
+  update(content: TextContent, style: TextStyle, imageUrl: string): GlyphEdges {
+    const image = content.kind === 'image' ? this.image(imageUrl) : null;
+    const key =
+      content.kind === 'text'
+        ? `t:${content.text}\u0000${style}`
+        : `i:${content.imageId}:${image ? 'ready' : 'loading'}`;
     if (key !== this.drawnKey) {
       this.drawnKey = key;
-      this.draw(content, style, name);
+      this.draw(content, style, image);
     }
     return this.edges;
   }
@@ -100,18 +108,20 @@ export class HeadlineTexture {
     this.texture.dispose();
   }
 
-  private loadLogo(logoUrl: string): void {
-    this.logoUrl = logoUrl;
-    this.logo = null;
-    if (!logoUrl) return;
-    const image = new Image();
-    image.onload = () => {
-      if (this.logoUrl === logoUrl) this.logo = image;
-    };
-    image.src = logoUrl;
+  /** The decoded image, or null while it decodes. */
+  private image(url: string): HTMLImageElement | null {
+    if (!url) return null;
+    let image = this.images.get(url);
+    if (!image) {
+      if (this.images.size >= MAX_CACHED_IMAGES) this.images.clear();
+      image = new Image();
+      image.src = url;
+      this.images.set(url, image);
+    }
+    return image.complete && image.naturalWidth > 0 ? image : null;
   }
 
-  private draw(content: TextContent, style: TextStyle, name: string): void {
+  private draw(content: TextContent, style: TextStyle, image: HTMLImageElement | null): void {
     const context = this.canvas.getContext('2d');
     if (!context) return;
     context.globalCompositeOperation = 'source-over';
@@ -120,21 +130,10 @@ export class HeadlineTexture {
     context.globalCompositeOperation = 'lighter'; // channels add up, they never cover each other
 
     if (content.kind === 'text') {
-      this.edges = this.drawText(
-        context,
-        displayText(content.text, style),
-        style,
-        HEIGHT / 2,
-        HEIGHT,
-      );
+      this.edges = this.drawText(context, displayText(content.text, style), style, HEIGHT / 2);
     } else {
       this.edges = [0, 1];
-      const label = name.trim().toUpperCase();
-      const labelHeight = label ? (this.logo ? 150 : HEIGHT) : 0;
-      if (this.logo) this.drawLogo(context, HEIGHT - labelHeight);
-      if (label) {
-        this.drawText(context, label, style, HEIGHT - labelHeight / 2, labelHeight);
-      }
+      if (image) this.drawImage(context, image);
     }
     this.texture.needsUpdate = true;
   }
@@ -144,11 +143,10 @@ export class HeadlineTexture {
     text: string,
     style: TextStyle,
     centreY: number,
-    areaHeight: number,
   ): GlyphEdges {
     const face = FACES[style];
     const glyphs = splitGlyphs(text);
-    let size = Math.min(MAX_TEXT_PX, areaHeight * 0.55);
+    let size = MAX_TEXT_PX;
     const setSize = (px: number) => {
       context.font = face.font(px);
       context.letterSpacing = `${Math.round(px * face.tracking)}px`;
@@ -189,33 +187,70 @@ export class HeadlineTexture {
     return edges;
   }
 
-  /** A logo becomes a silhouette (red) with its brightness kept as detail (blue). */
-  private drawLogo(context: CanvasRenderingContext2D, areaHeight: number): void {
-    const logo = this.logo as HTMLImageElement;
-    const padding = 32;
+  /**
+   * An image becomes a silhouette (red) with outlines (green, for neon) along its edge and where
+   * light meets dark inside it, and its brightness kept as detail (blue), so lettering inside a
+   * logo still reads.
+   */
+  private drawImage(context: CanvasRenderingContext2D, image: HTMLImageElement): void {
     const scale = Math.min(
-      (WIDTH - 2 * PAD_X) / logo.width,
-      (areaHeight - 2 * padding) / logo.height,
+      (WIDTH - 2 * PAD_X) / image.naturalWidth,
+      (HEIGHT - 2 * PAD_Y) / image.naturalHeight,
     );
-    const width = Math.max(1, Math.round(logo.width * scale));
-    const height = Math.max(1, Math.round(logo.height * scale));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
     const scratch = document.createElement('canvas');
     scratch.width = width;
     scratch.height = height;
     const scratchContext = scratch.getContext('2d');
     if (!scratchContext) return;
-    scratchContext.drawImage(logo, 0, 0, width, height);
-    const image = scratchContext.getImageData(0, 0, width, height);
-    const { data } = image;
-    for (let i = 0; i < data.length; i += 4) {
-      const alpha = data[i + 3];
-      const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-      data[i] = alpha;
-      data[i + 1] = 0;
-      data[i + 2] = Math.round((luma * alpha) / 255);
-      data[i + 3] = 255;
+    scratchContext.drawImage(image, 0, 0, width, height);
+    const pixels = scratchContext.getImageData(0, 0, width, height);
+    const { data } = pixels;
+
+    const alpha = new Uint8Array(width * height);
+    const detail = new Uint8Array(width * height);
+    for (let i = 0; i < alpha.length; i++) {
+      const o = i * 4;
+      alpha[i] = data[o + 3];
+      // Brightness as the brightest channel: a saturated red logo is bright, not dark.
+      detail[i] = Math.round((Math.max(data[o], data[o + 1], data[o + 2]) * alpha[i]) / 255);
     }
-    scratchContext.putImageData(image, 0, 0);
-    context.drawImage(scratch, (WIDTH - width) / 2, (areaHeight - height) / 2);
+    // Edges of the shape, and inside it where light meets dark (lettering inside a badge).
+    const inner = erode(alpha, width, height, OUTLINE_PX);
+    const innerDetail = erode(detail, width, height, Math.ceil(OUTLINE_PX / 2));
+
+    for (let i = 0; i < alpha.length; i++) {
+      const o = i * 4;
+      data[o] = alpha[i];
+      data[o + 1] = Math.max(alpha[i] - inner[i], detail[i] - innerDetail[i]);
+      data[o + 2] = detail[i];
+      data[o + 3] = 255;
+    }
+    scratchContext.putImageData(pixels, 0, 0);
+    context.drawImage(scratch, Math.round((WIDTH - width) / 2), Math.round((HEIGHT - height) / 2));
   }
+}
+
+/**
+ * Shrinks a coverage mask by `radius` pixels (a minimum filter, done as two passes). What it
+ * takes away is a band along the edge: the image's outline.
+ */
+function erode(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const pass = (source: Uint8Array, horizontal: boolean): Uint8Array => {
+    const out = new Uint8Array(source.length);
+    const [lines, length] = horizontal ? [height, width] : [width, height];
+    for (let line = 0; line < lines; line++) {
+      for (let i = 0; i < length; i++) {
+        let min = 255;
+        for (let k = Math.max(0, i - radius); k <= Math.min(length - 1, i + radius); k++) {
+          const index = horizontal ? line * width + k : k * width + line;
+          if (source[index] < min) min = source[index];
+        }
+        out[horizontal ? line * width + i : i * width + line] = min;
+      }
+    }
+    return out;
+  };
+  return pass(pass(mask, true), false);
 }

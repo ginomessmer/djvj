@@ -1,8 +1,8 @@
 /**
  * Every scene is a GLSL file that only defines `vec3 render(vec2 uv, vec2 p)`. The header adds the
  * shared uniforms and helpers, the footer a soft clip. Scenes render into textures; the composite
- * pass blends two of them (crossfade), styles the headline text with them, lays the corner mark on
- * top and applies vignette, master level and dither. three.js supplies `#version 300 es` and precision (GLSL3); the outputs are ours.
+ * pass blends two of them (crossfade), styles the headline text or image with them and applies
+ * vignette, master level and dither. three.js supplies `#version 300 es` and precision (GLSL3); the outputs are ours.
  */
 
 export const VERTEX_SHADER = /* glsl */ `
@@ -117,10 +117,7 @@ void main() {
 }
 `;
 
-/**
- * Blends two rendered scenes, styles the headline text with them, adds the corner mark, then
- * vignette, master level and dither.
- */
+/** Blends two rendered scenes, styles the headline text with them, then vignette, master level and dither. */
 export const COMPOSITE_SHADER = /* glsl */ `
 out vec4 fragColor;
 
@@ -129,16 +126,13 @@ uniform float     u_time;
 uniform sampler2D u_from;
 uniform sampler2D u_to;
 uniform float     u_mix;            // 0 = from, 1 = to
-uniform sampler2D u_overlay;
-uniform float     u_overlayOpacity;
-uniform vec4      u_overlayRect;    // x, y, width, height in screen uv (origin bottom left)
 uniform float     u_intensity;      // master level, start-up fade, blackout, flash guard
 uniform vec3      u_palette[4];
 uniform float     u_pulse;          // beat-locked pulse, damped by the flash guard
 uniform float     u_bass;
 uniform float     u_beat;           // 0..1 position in the beat
 
-// Headline text: a texture with fill (r), outline (g) and logo detail (b), mipmapped for glow.
+// Headline text or image: fill (r), outline (g) and detail (b: brightness), mipmapped for glow.
 uniform sampler2D u_text;
 uniform float u_textOpacity;
 uniform int   u_textStyle;          // 0 neon, 1 chrome, 2 glass, 3 soft, 4 glitch, 5 invert
@@ -220,7 +214,10 @@ vec3 applyText(vec3 col, vec2 uv) {
 
   int g = glyphAt(o.x);
   vec3 t = textAt(o, u_textLod, g);
-  float halo = haloAt(o, g);
+  // The halo fades out before the edge of the box, so the shadow never ends in a hard line.
+  float window = smoothstep(-0.05, 0.03, o.x) * smoothstep(1.05, 0.97, o.x)
+               * smoothstep(-0.1, 0.02, o.y) * smoothstep(1.1, 0.98, o.y);
+  float halo = haloAt(o, g) * window;
 
   // Leaving: noise eats the letters, starting with the thin parts.
   float grain = vnoise(o * vec2(64.0, 16.0)) * 0.7 + vnoise(o * vec2(9.0, 2.5)) * 0.3;
@@ -229,6 +226,8 @@ vec3 applyText(vec3 col, vec2 uv) {
   float fill = t.r * a;
   float line = t.g * a;
   float glow = halo * a;
+  // Detail: dark parts of an image stay dark (lettering inside a logo); a text is all bright.
+  float shade = mix(0.12, 1.0, t.r > 0.004 ? clamp(t.b / t.r, 0.0, 1.0) : 1.0);
 
   // A soft shadow behind the letters keeps them readable over a busy scene.
   float scrim = u_textStyle == 2 || u_textStyle == 5 ? 0.25 : 0.55;
@@ -237,7 +236,7 @@ vec3 applyText(vec3 col, vec2 uv) {
   if (u_textStyle == 0) {
     // neon: white-hot tubes along the outline, the colour walks along the word
     vec3 tube = pal(o.x * 0.45 + u_time * 0.03);
-    col += tube * fill * 0.1;
+    col += tube * fill * 0.1 * shade;
     col += mix(tube, vec3(1.0), 0.55) * line * 1.25;
     col += tube * glow * (0.7 + 1.1 * u_textGlow);
   } else if (u_textStyle == 1) {
@@ -249,7 +248,7 @@ vec3 applyText(vec3 col, vec2 uv) {
     metal += smoothstep(0.035, 0.0, abs(y - 0.5)) * 0.9;
     float sweep = fract(o.x * 0.5 - o.y * 0.25 - u_beat);
     metal += smoothstep(0.06, 0.0, abs(sweep - 0.5)) * 0.6 * (0.4 + u_textGlow);
-    col = mix(col, metal, fill);
+    col = mix(col, metal * shade, fill);
     col += mix(u_palette[0], vec3(1.0), 0.4) * line * 0.6;
     col += u_palette[1] * glow * (0.12 + 0.35 * u_textGlow);
   } else if (u_textStyle == 2) {
@@ -264,26 +263,26 @@ vec3 applyText(vec3 col, vec2 uv) {
     vec3 frost = mix(u_palette[1], vec3(1.0), 0.55);
     vec3 through = sceneAt(uv - bend) * 1.3 + frost * 0.2;
     float spec = smoothstep(0.15, 0.6, dot(n, vec2(-0.6, 0.8)));
-    col = mix(col, through + spec * 0.8, fill);
+    col = mix(col, (through + spec * 0.8) * shade, fill);
     col += frost * line * 0.55 + u_palette[1] * glow * 0.2 * (0.5 + u_textGlow);
   } else if (u_textStyle == 3) {
     // soft: light letters tinted by the palette, breathing in a wide glow
     vec3 ink = mix(vec3(1.0), pal(0.15 + o.x * 0.2), 0.3);
-    col = mix(col, ink, fill * 0.92);
+    col = mix(col, ink * shade, fill * 0.92);
     col += ink * glow * (0.35 + 0.35 * u_textGlow);
   } else if (glitch) {
     // glitch: red and blue copies pulled apart on the bass, over scanlines
     vec2 d = vec2(0.006 + 0.02 * u_bass + 0.01 * u_textGlow, 0.0);
     float r = textAt(o + d, u_textLod, g).r * a;
     float b = textAt(o - d, u_textLod, g).r * a;
-    vec3 ink = vec3(r, fill, b) * mix(vec3(1.0), pal(0.1), 0.25);
+    vec3 ink = vec3(r, fill, b) * mix(vec3(1.0), pal(0.1), 0.25) * shade;
     float scan = 0.75 + 0.25 * sin(gl_FragCoord.y * 1.7);
     col = col * (1.0 - max(max(r, b), fill)) + ink * scan * 1.15;
     col += pal(0.6) * glow * 0.25;
   } else {
     // invert: the letters turn the scene inside out
     vec3 inside = clamp(vec3(1.0) - col * 1.2, 0.0, 1.0) + u_palette[2] * 0.1;
-    col = mix(col, inside, fill);
+    col = mix(col, inside * shade, fill);
     col += vec3(1.0) * line * 0.25;
   }
 
@@ -302,12 +301,6 @@ void main() {
   vec3 col = sceneAt(uv);
 
   if (u_textOpacity > 0.0) col = applyText(col, uv);
-
-  vec2 o = (uv - u_overlayRect.xy) / u_overlayRect.zw;
-  if (u_overlayOpacity > 0.0 && o.x >= 0.0 && o.y >= 0.0 && o.x <= 1.0 && o.y <= 1.0) {
-    vec4 mark = texture(u_overlay, o);
-    col = mix(col, mark.rgb, mark.a * u_overlayOpacity);
-  }
 
   col *= 1.0 - 0.45 * dot(uv - 0.5, uv - 0.5);                      // gentle vignette
   col *= u_intensity;

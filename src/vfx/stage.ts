@@ -5,14 +5,13 @@ import { meanRelativeLuminance } from '@/domain/safety/luminance';
 import type { SceneMix } from '@/domain/show/scene-mixer';
 import { SAFE_SCENE_ID, type SceneId } from '@/domain/show/scenes';
 import { TEXT_STYLES } from '@/domain/show/texts';
-import type { FrameParams, OverlayParams, TextParams } from './frame-params';
+import type { FrameParams, TextParams } from './frame-params';
 import {
   HEADLINE_ASPECT,
   HEADLINE_TEXTURE_WIDTH,
   HeadlineTexture,
   MAX_GLYPHS,
 } from './headline-texture';
-import { OVERLAY_ASPECT, OverlayTexture } from './overlay-texture';
 import { SCENE_SHADERS } from './scenes';
 import { COMPOSITE_SHADER, FRAGMENT_FOOTER, FRAGMENT_HEADER, VERTEX_SHADER } from './shader-chunks';
 
@@ -34,8 +33,6 @@ const CAMERA_FADE_SEC = 0.4;
  * for longer than this while the video plays, the frame is uploaded anyway.
  */
 const CAMERA_STALL_SEC = 0.25;
-/** Where the corner mark sits, in fractions of the screen width. */
-const CORNER_LAYOUT = { width: 0.2, marginX: 0.03, marginY: 0.04 };
 /** The headline box: this share of the screen width, centred. */
 const HEADLINE_WIDTH = 0.86;
 
@@ -56,7 +53,7 @@ function sceneTarget(): THREE.WebGLRenderTarget {
 
 /**
  * Draws the show: each frame one or two fullscreen fragment-shader scenes, blended by a composite
- * pass that also adds the overlay. Shader compile errors fall back to the safe scene instead of
+ * pass that also adds the headline text. Shader compile errors fall back to the safe scene instead of
  * leaving the screen dead. It also measures how bright the output is, for the flash guard.
  */
 export class Stage {
@@ -73,7 +70,6 @@ export class Stage {
     generateMipmaps: false,
   });
   private readonly probePixels = new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4);
-  private readonly overlay = new OverlayTexture();
   private readonly headline = new HeadlineTexture();
   private readonly drawingBufferSize = new THREE.Vector2();
   private readonly paletteTarget = Array.from({ length: PALETTE_SIZE }, () => new THREE.Color());
@@ -116,9 +112,6 @@ export class Stage {
     u_from: { value: this.targets.from.texture },
     u_to: { value: this.targets.to.texture },
     u_mix: { value: 0 },
-    u_overlay: { value: this.overlay.texture as THREE.Texture },
-    u_overlayOpacity: { value: 0 },
-    u_overlayRect: { value: new THREE.Vector4(0, 0, 1, 1) },
     u_intensity: { value: 1 },
     u_palette: this.sceneUniforms.u_palette,
     u_pulse: { value: 0 },
@@ -209,12 +202,7 @@ export class Stage {
     return [width, height];
   }
 
-  render(
-    mix: SceneMix<SceneId>,
-    frame: FrameParams,
-    overlay: OverlayParams,
-    text: TextParams,
-  ): void {
+  render(mix: SceneMix<SceneId>, frame: FrameParams, text: TextParams): void {
     this.applyFrame(frame);
     this.drawScene(mix.mix >= 1 ? mix.toId : mix.fromId, this.targets.from);
     const blending = mix.mix > 0 && mix.mix < 1 && mix.toId !== mix.fromId;
@@ -228,8 +216,7 @@ export class Stage {
     uniforms.u_bass.value = Math.max(frame.features.bands[0], frame.features.bands[1]);
     uniforms.u_beat.value = frame.rhythm.beatPhase;
     this.renderer.getDrawingBufferSize(this.drawingBufferSize);
-    this.applyOverlay(overlay);
-    this.applyText(text, overlay);
+    this.applyText(text);
 
     uniforms.u_res.value.copy(this.drawingBufferSize);
     this.renderer.setRenderTarget(null);
@@ -262,7 +249,6 @@ export class Stage {
     this.targets.to.dispose();
     this.probe.dispose();
     this.previewTarget?.dispose();
-    this.overlay.dispose();
     this.headline.dispose();
     this.cameraTexture?.dispose();
     this.noCamera.dispose();
@@ -304,7 +290,7 @@ export class Stage {
       });
   }
 
-  /** Renders the composite (overlay and master level included) small, and reads it back async. */
+  /** Renders the composite (texts and master level included) small, and reads it back async. */
   private capturePreview(): void {
     if (this.previewReading) return;
     const width = PREVIEW_WIDTH;
@@ -406,24 +392,12 @@ export class Stage {
     uniforms.u_camera.value = this.cameraTexture ?? this.noCamera;
   }
 
-  private applyOverlay({ name, logoUrl, opacity }: OverlayParams): void {
-    const uniforms = this.compositeUniforms;
-    uniforms.u_overlayOpacity.value = opacity;
-    if (opacity <= 0) return;
-    this.overlay.update(name, logoUrl);
-
-    const screenAspect = this.drawingBufferSize.x / Math.max(1, this.drawingBufferSize.y);
-    const { width, marginX, marginY } = CORNER_LAYOUT;
-    const height = (width * screenAspect) / OVERLAY_ASPECT;
-    uniforms.u_overlayRect.value.set(1 - marginX - width, marginY, width, height);
-  }
-
-  private applyText({ content, style, look }: TextParams, overlay: OverlayParams): void {
+  private applyText({ content, imageUrl, style, look }: TextParams): void {
     const uniforms = this.compositeUniforms;
     uniforms.u_textOpacity.value = content ? look.opacity : 0;
     if (!content || look.opacity <= 0) return;
 
-    const edges = this.headline.update(content, style, overlay.name, overlay.logoUrl);
+    const edges = this.headline.update(content, style, imageUrl);
     const count = Math.max(1, Math.min(MAX_GLYPHS, edges.length - 1, look.lift.length));
     uniforms.u_glyphCount.value = count;
     for (let i = 0; i <= MAX_GLYPHS; i++) {

@@ -47,21 +47,36 @@ const SUGGESTIONS: readonly TextMessage[] = [
 interface TextsPanelProps {
   show: ShowState;
   text: ShowSnapshot['text'];
+  /** Ids of the images the output holds. */
+  images: readonly string[];
+  /** Thumbnails by image id ('' when there is none to show). */
+  thumbnails: Readonly<Record<string, string>>;
   onPatch: (patch: ShowPatch) => void;
   onShowText: (index: number) => void;
+  /** Adds an image entry for this file. */
+  onAddImage: (file: File) => void;
 }
 
 /**
- * Texts that appear with the music. Each belongs to a moment of the track, which also decides how
- * it moves; ▶ shows one right away. The look follows the scene unless one is picked.
+ * Texts and images that appear with the music. Each belongs to a moment of the track, which also
+ * decides how it moves; ▶ shows one right away. The look follows the scene unless one is picked.
  */
-export function TextsPanel({ show, text, onPatch, onShowText }: TextsPanelProps) {
+export function TextsPanel({
+  show,
+  text,
+  images,
+  thumbnails,
+  onPatch,
+  onShowText,
+  onAddImage,
+}: TextsPanelProps) {
   const { texts } = show;
   const setTexts = (next: TextMessage[]) => onPatch({ texts: next });
   const change = (index: number, patch: Partial<TextMessage>) =>
     setTexts(texts.map((message, i) => (i === index ? { ...message, ...patch } : message)));
   const remove = (index: number) => setTexts(texts.filter((_, i) => i !== index));
   const add = (message: TextMessage) => setTexts([...texts, message].slice(0, MAX_TEXTS));
+  const full = texts.length >= MAX_TEXTS;
   const ideas =
     texts.length < MAX_TEXTS
       ? SUGGESTIONS.filter((idea) => !texts.some((message) => message.text === idea.text))
@@ -80,14 +95,16 @@ export function TextsPanel({ show, text, onPatch, onShowText }: TextsPanelProps)
         />
       }
     >
-      <p class="texts__now" aria-live="polite" {...hint('The text on the big screen right now.')}>
+      <p class="texts__now" aria-live="polite" {...hint('What is on the big screen right now.')}>
         <span
           class={text.showing ? 'texts__dot texts__dot--on' : 'texts__dot'}
           aria-hidden="true"
         />
         {text.showing ? (
           <>
-            <strong class="texts__live">{text.showing}</strong>
+            <strong class="texts__live">
+              {text.kind === 'image' ? `🖼 ${text.showing}` : text.showing}
+            </strong>
             <span class="texts__style">{text.style && STYLE_LABELS[text.style]}</span>
           </>
         ) : (
@@ -99,51 +116,76 @@ export function TextsPanel({ show, text, onPatch, onShowText }: TextsPanelProps)
 
       {texts.length > 0 && (
         <ul class="texts__list">
-          {texts.map((message, index) => (
-            <li key={index} class="texts__row">
-              <button
-                type="button"
-                class="texts__fire"
-                disabled={message.text.trim() === ''}
-                aria-label={`Show “${message.text}” now`}
-                onClick={() => onShowText(index)}
-                {...hint('Show this text now, with the motion of its moment.')}
-              >
-                ▶
-              </button>
-              <input
-                type="text"
-                class="texts__input"
-                maxLength={MAX_TEXT_LENGTH}
-                value={message.text}
-                placeholder="Text"
-                aria-label={`Text ${index + 1}`}
-                onInput={(event) => change(index, { text: event.currentTarget.value })}
-              />
-              <select
-                class="texts__cue"
-                value={message.cue}
-                aria-label={`When text ${index + 1} appears`}
-                onChange={(event) => change(index, { cue: event.currentTarget.value as TextCue })}
-                {...hint(CUE_HINTS[message.cue])}
-              >
-                {(Object.keys(CUE_LABELS) as TextCue[]).map((cue) => (
-                  <option key={cue} value={cue}>
-                    {CUE_LABELS[cue]}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                class="texts__remove"
-                aria-label={`Remove text ${index + 1}`}
-                onClick={() => remove(index)}
-                {...hint('Remove this text.')}
-              >
-                ×
-              </button>
-            </li>
-          ))}
+          {texts.map((message, index) => {
+            const isImage = Boolean(message.imageId);
+            const missing = isImage && !images.includes(message.imageId ?? '');
+            const empty = !isImage && message.text.trim() === '';
+            const thumbnail = isImage ? thumbnails[message.imageId ?? ''] : '';
+            const name = isImage ? `image ${message.text}` : `“${message.text}”`;
+            return (
+              <li key={index} class="texts__row">
+                <button
+                  type="button"
+                  class="texts__fire"
+                  disabled={empty || missing}
+                  aria-label={`Show ${name} now`}
+                  onClick={() => onShowText(index)}
+                  {...hint('Show this now, with the motion of its moment.')}
+                >
+                  ▶
+                </button>
+                {isImage ? (
+                  <span
+                    class={missing ? 'texts__image texts__image--missing' : 'texts__image'}
+                    {...hint(
+                      missing
+                        ? 'This image is gone (storage was full or cleared). Remove it and add it again.'
+                        : 'Drawn as a silhouette in the look of the scene; its light and dark parts are kept.',
+                    )}
+                  >
+                    {thumbnail ? (
+                      <img src={thumbnail} alt="" />
+                    ) : (
+                      <span class="texts__thumb" aria-hidden="true" />
+                    )}
+                    <span class="texts__label">{missing ? 'Missing image' : message.text}</span>
+                  </span>
+                ) : (
+                  <input
+                    type="text"
+                    class="texts__input"
+                    maxLength={MAX_TEXT_LENGTH}
+                    value={message.text}
+                    placeholder="Text"
+                    aria-label={`Text ${index + 1}`}
+                    onInput={(event) => change(index, { text: event.currentTarget.value })}
+                  />
+                )}
+                <select
+                  class="texts__cue"
+                  value={message.cue}
+                  aria-label={`When entry ${index + 1} appears`}
+                  onChange={(event) => change(index, { cue: event.currentTarget.value as TextCue })}
+                  {...hint(CUE_HINTS[message.cue])}
+                >
+                  {(Object.keys(CUE_LABELS) as TextCue[]).map((cue) => (
+                    <option key={cue} value={cue}>
+                      {CUE_LABELS[cue]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  class="texts__remove"
+                  aria-label={`Remove entry ${index + 1}`}
+                  onClick={() => remove(index)}
+                  {...hint('Remove this entry.')}
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -170,12 +212,31 @@ export function TextsPanel({ show, text, onPatch, onShowText }: TextsPanelProps)
       <div class="row">
         <button
           type="button"
-          disabled={texts.length >= MAX_TEXTS}
+          disabled={full}
           onClick={() => add({ text: '', cue: 'drop' })}
-          {...hint(`Up to ${MAX_TEXTS} texts. Each moment takes its texts in turn.`)}
+          {...hint(`Up to ${MAX_TEXTS} texts and images. Each moment takes its entries in turn.`)}
         >
           Add text
         </button>
+        <label
+          class={full ? 'button file-button is-disabled' : 'button file-button'}
+          {...hint('A logo or artwork, PNG or SVG. Transparent backgrounds work best.')}
+        >
+          Add image
+          <input
+            type="file"
+            accept="image/png,image/svg+xml,image/webp,image/jpeg"
+            disabled={full}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) onAddImage(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
+      </div>
+      <label class="field">
+        <span class="field__label">Look</span>
         <select
           value={show.textStyle}
           aria-label="Text look"
@@ -190,7 +251,7 @@ export function TextsPanel({ show, text, onPatch, onShowText }: TextsPanelProps)
             </option>
           ))}
         </select>
-      </div>
+      </label>
     </Panel>
   );
 }

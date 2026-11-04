@@ -73,8 +73,16 @@ export function createTestRuntime(directorOptions: Partial<DirectorOptions> = {}
     setPreviewWanted: vi.fn(),
     takePreviewFrame: vi.fn((): PreviewFrame | null => null),
   };
-  const logos: string[] = [];
-  const logoStorage = { load: () => '', save: (url: string) => void logos.push(url) };
+  const stored = new Map<string, string>();
+  const imageStorage = {
+    ids: () => [...stored.keys()],
+    load: (id: string) => stored.get(id) ?? '',
+    save: (id: string, dataUrl: string) => {
+      stored.set(id, dataUrl);
+      return true;
+    },
+    remove: (id: string) => void stored.delete(id),
+  };
   const audio = new AudioPipeline(fakeAudioInput(), store.getState().silenceDb);
   const cameraInput = fakeCameraInput();
   const camera = new CameraPipeline(cameraInput as unknown as CameraInput);
@@ -85,9 +93,9 @@ export function createTestRuntime(directorOptions: Partial<DirectorOptions> = {}
     audio,
     camera,
     director,
-    logoStorage,
+    imageStorage,
   });
-  return { runtime, store, stage, audio, camera, cameraInput, logos };
+  return { runtime, store, stage, audio, camera, cameraInput, stored };
 }
 
 /** Runs frames at 60 fps for `seconds`, starting at `startSec`. */
