@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes plus 4 live-camera scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, texts and images (your logo) that move with the music and take on each scene's look, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 3.** Audio in → beat tracking and song structure → 13 beat-synced scenes plus 4 live-camera scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, texts and images (your logo) that move with the music and take on each scene's look, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -44,6 +44,16 @@ Ordered from calm to intense. The energy range is what the phase 2 director will
 | <img src="docs/scenes/tunnel.jpg" alt="Tunnel scene" width="240"> | Tunnel | checkered tunnel, speed follows the music | mid to peak |
 | <img src="docs/scenes/starfield.jpg" alt="Starfield scene" width="240"> | Starfield | streaks out of the centre, longer with energy | high to peak |
 | <img src="docs/scenes/lasers.jpg" alt="Lasers scene" width="240"> | Lasers | two fans of beams, soft pulses (no strobing) | high to peak |
+
+Three more came later. They sit after the first ten (keys `G` `H` `J`), so the number keys stay where they were.
+
+| Preview | Scene | Look | Energy |
+| --- | --- | --- | --- |
+| <img src="docs/scenes/deco.jpg" alt="Ocean drive scene" width="240"> | Ocean drive | cruising past pastel art deco beach hotels at dusk: neon fins and sign blades, palms, light trails on a wet street | low to high |
+| <img src="docs/scenes/voxels.jpg" alt="Voxels scene" width="240"> | Voxels | flight over a landscape of blocks; the bass pushes columns up, the beat lights the block edges | low to high |
+| <img src="docs/scenes/rig.jpg" alt="Light rig scene" width="240"> | Light rig | festival stage from inside the crowd: moving heads switch between fans, crosses and sweeps (and flare when aimed at you), LED battens run chases, strobes on the truss, a backlit crowd jumps on the kicks | high to peak |
+
+The Light rig's strobes are small fixtures, not the whole screen: they fire on the beat pulse only at high energy, so a full-screen flash never happens and the flash guard damps them like any other pulse.
 
 ### Camera scenes
 
@@ -93,7 +103,7 @@ Up to eight entries in the control window's *Texts* panel: short texts (*MAKE SO
 
 Several entries for the same moment take turns. **▶** next to a text shows it right away (also without music, e.g. *BACK IN 5*). **`X`** switches all texts on or off.
 
-**Look.** Every scene has a text style that fits it, and *Auto look* follows the scene: **neon** tubes over the tunnel, lasers and rings, **chrome** over the grid and starfield, **glass** that refracts the scene over the orb, lava and fluid, **soft** glow over the aurora, **glitch** over the glitch and glyph scenes, and **invert** over the kaleidoscope and halftone. A text keeps the look it started with even when the scene changes underneath. Pick a style to use it everywhere. Colours come from the playing palette. A soft shadow behind the letters keeps them readable over busy scenes, and nothing flashes: the beat changes size, lift and glow, never the brightness of the whole text.
+**Look.** Every scene has a text style that fits it, and *Auto look* follows the scene: **neon** tubes over the tunnel, lasers, rings, light rig and Ocean drive, **chrome** over the grid and starfield, **glass** that refracts the scene over the orb, lava, fluid and voxels, **soft** glow over the aurora, **glitch** over the glitch and glyph scenes, and **invert** over the kaleidoscope and halftone. A text keeps the look it started with even when the scene changes underneath. Pick a style to use it everywhere. Colours come from the playing palette. A soft shadow behind the letters keeps them readable over busy scenes, and nothing flashes: the beat changes size, lift and glow, never the brightness of the whole text.
 
 ### Images
 
@@ -135,6 +145,7 @@ Press **`?`** in the control view for the list. Single keys work in the output w
 | `F`       | Fullscreen (output window only)                                            |
 | `O`       | Open or focus the output window (control window only)                      |
 | `1`…`0`   | Pick scene 1 to 10 (same order as the pads). Locks it.                     |
+| `G` `H` `J` | Pick scene 11 to 13 (Ocean drive, Voxels, Light rig). Locks it.             |
 | `Q` `W` `E` `R` | Pick a camera scene (Halftone, Glyphs, Neon edges, Glitch). Locks it. |
 | `?`       | Shortcut list (control window only)                                        |
 | `A`       | Auto-rotate scenes on/off. Picking a scene manually locks it.              |

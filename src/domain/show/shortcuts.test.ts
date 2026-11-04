@@ -43,6 +43,15 @@ describe('shortcutPatch', () => {
     expect(shortcutPatch('0', show)).toEqual(lockScene(SELECTABLE_SCENE_IDS[9]));
   });
 
+  it('G H J pick the generated scenes after the first ten', () => {
+    const generatedIds = SELECTABLE_SCENES.filter((scene) => !scene.camera).map(
+      (scene) => scene.id,
+    );
+    expect(['g', 'h', 'j'].map((key) => shortcutPatch(key, show))).toEqual(
+      generatedIds.slice(10, 13).map(lockScene),
+    );
+  });
+
   it('Q W E R pick the camera scenes', () => {
     const cameraIds = SELECTABLE_SCENES.filter((scene) => scene.camera).map((scene) => scene.id);
     expect(['q', 'w', 'e', 'r'].map((key) => shortcutPatch(key, show))).toEqual(
