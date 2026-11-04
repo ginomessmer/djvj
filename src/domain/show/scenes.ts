@@ -1,3 +1,5 @@
+import type { TextStyle } from './texts';
+
 /**
  * Which scenes exist. How they look lives in `vfx/scenes`; the compiler checks that every id
  * listed here has a shader there.
@@ -62,6 +64,30 @@ export const SELECTABLE_SCENE_IDS: readonly SceneId[] = SELECTABLE_SCENES.map((s
 
 export const isCameraScene = (sceneId: SceneId): boolean =>
   SCENES.find((scene) => scene.id === sceneId)?.camera ?? false;
+
+/**
+ * How headline text looks over each scene (unless the DJ forces a style): neon where there are
+ * lines of light, chrome over the retro scenes, glass where there is something to refract.
+ */
+const SCENE_TEXT_STYLES: Record<SceneId, TextStyle> = {
+  aurora: 'soft',
+  lava: 'glass',
+  fluid: 'glass',
+  rings: 'neon',
+  grid: 'chrome',
+  orb: 'glass',
+  kaleidoscope: 'invert',
+  tunnel: 'neon',
+  starfield: 'chrome',
+  lasers: 'neon',
+  halftone: 'invert',
+  glyphs: 'glitch',
+  neon: 'neon',
+  glitch: 'glitch',
+  ambient: 'soft',
+};
+
+export const sceneTextStyle = (sceneId: SceneId): TextStyle => SCENE_TEXT_STYLES[sceneId];
 
 export const DEFAULT_SCENE_ID: SceneId = 'tunnel';
 /** Panic switches to this: it never reacts to audio. */

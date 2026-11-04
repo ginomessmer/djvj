@@ -6,7 +6,7 @@ import { Disclosure } from '../components/Disclosure';
 const MODE_LABELS: Record<OverlayMode, string> = {
   off: 'Off',
   corner: 'Corner (always)',
-  reveal: 'Big, after each drop',
+  reveal: 'Big, among the texts',
 };
 
 interface OverlayPanelProps {
@@ -68,7 +68,10 @@ export function OverlayPanel({
           </button>
         )}
       </div>
-      <p class="hint">A transparent PNG works best. Shown in white over the visuals.</p>
+      <p class="hint">
+        A transparent PNG works best. Big, it comes after drops and now and then, in the look of the
+        texts.
+      </p>
     </Disclosure>
   );
 }

@@ -33,6 +33,8 @@ export function shortcutPatch(key: string, show: ShowState): ShowPatch | null {
       return { panic: !show.panic };
     case 'm':
       return { demo: !show.demo };
+    case 'x':
+      return { textsOn: !show.textsOn };
     default:
       return null;
   }
@@ -70,6 +72,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { keys: ['B'], action: 'Blackout: fast fade to black', where: 'both' },
       { keys: ['P'], action: 'Panic: instantly show the safe ambient scene', where: 'both' },
       { keys: ['T'], action: 'Tap tempo (four taps on the kick)', where: 'both' },
+      { keys: ['X'], action: 'Texts on or off', where: 'both' },
     ],
   },
   {

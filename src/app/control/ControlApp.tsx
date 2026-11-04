@@ -27,6 +27,7 @@ export function ControlApp() {
           .catch((error: unknown) => console.warn('[djvj] could not read the logo', error));
       },
       onRemoveLogo: () => send({ type: 'set-logo', dataUrl: '' }),
+      onShowText: (index) => send({ type: 'show-text', index }),
     }),
     [onPatch, send],
   );

@@ -13,6 +13,7 @@ import { ScenesPanel } from './ScenesPanel';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { SignalPanel } from './SignalPanel';
 import { StatusBar } from './StatusBar';
+import { TextsPanel } from './TextsPanel';
 import { TopBar } from './TopBar';
 import { useHint } from './use-hint';
 import { Welcome } from './Welcome';
@@ -24,6 +25,7 @@ export interface ControlActions {
   onClearTap: () => void;
   onLogoFile: (file: File) => void;
   onRemoveLogo: () => void;
+  onShowText: (index: number) => void;
 }
 
 export type DialogName = 'appearance' | 'shortcuts';
@@ -122,6 +124,12 @@ export function ControlPanel({
                 onPatch={onPatch}
                 onTap={actions.onTap}
                 onClearTap={actions.onClearTap}
+              />
+              <TextsPanel
+                show={snapshot.show}
+                text={snapshot.text}
+                onPatch={onPatch}
+                onShowText={actions.onShowText}
               />
               <SignalPanel signal={snapshot.signal} />
             </div>
