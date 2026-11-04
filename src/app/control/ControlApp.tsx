@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { shortcutPatch } from '@/domain/show/shortcuts';
 import type { ShowPatch } from '@/domain/show/show-state';
+import { MAX_TEXT_LENGTH, MAX_TEXTS } from '@/domain/show/texts';
 import { readImageAsDataUrl } from '@/services/image-file';
+import { imageStorage } from '@/services/image-storage';
 import { onPlainKey } from '@/services/keyboard';
 import { type ControlActions, ControlPanel, type DialogName } from '@/ui/control/ControlPanel';
 import { useOutputLauncher } from './use-output-launcher';
@@ -13,6 +15,20 @@ export function ControlApp() {
   const { open: openOutput, blocked } = useOutputLauncher(connected);
   const { preferences, update, reset } = usePreferences();
   const [dialog, setDialog] = useState<DialogName | null>(null);
+  const showRef = useRef(snapshot?.show);
+  showRef.current = snapshot?.show;
+  // Thumbnails come straight from storage (same origin as the output); read once per image.
+  const imageKey = snapshot?.images.join(',') ?? '';
+  const thumbnails = useMemo(
+    () =>
+      Object.fromEntries(
+        imageKey
+          .split(',')
+          .filter(Boolean)
+          .map((id) => [id, imageStorage.load(id)]),
+      ),
+    [imageKey],
+  );
   const onPatch = useCallback((patch: ShowPatch) => send({ type: 'patch', patch }), [send]);
 
   const actions = useMemo<ControlActions>(
@@ -21,18 +37,24 @@ export function ControlApp() {
       onRefreshDevices: () => send({ type: 'refresh-devices' }),
       onTap: () => send({ type: 'tap' }),
       onClearTap: () => send({ type: 'clear-tap' }),
-      onLogoFile: (file) => {
+      onAddImage: (file) => {
         readImageAsDataUrl(file)
-          .then((dataUrl) => send({ type: 'set-logo', dataUrl }))
-          .catch((error: unknown) => console.warn('[djvj] could not read the logo', error));
+          .then((dataUrl) => {
+            const texts = showRef.current?.texts ?? [];
+            if (texts.length >= MAX_TEXTS) return;
+            const id = crypto.randomUUID().slice(0, 18);
+            const label = file.name.replace(/\.[a-z0-9]+$/i, '').slice(0, MAX_TEXT_LENGTH);
+            // The image first: the entry that refers to it arrives after it, in order.
+            send({ type: 'set-image', id, dataUrl });
+            onPatch({ texts: [...texts, { text: label || 'image', cue: 'drop', imageId: id }] });
+          })
+          .catch((error: unknown) => console.warn('[djvj] could not read the image', error));
       },
-      onRemoveLogo: () => send({ type: 'set-logo', dataUrl: '' }),
+      onShowText: (index) => send({ type: 'show-text', index }),
     }),
     [onPatch, send],
   );
 
-  const showRef = useRef(snapshot?.show);
-  showRef.current = snapshot?.show;
   const dialogRef = useRef(dialog);
   dialogRef.current = dialog;
   useEffect(
@@ -62,6 +84,7 @@ export function ControlApp() {
       onResetPreferences={reset}
       dialog={dialog}
       onDialog={setDialog}
+      thumbnails={thumbnails}
       {...actions}
     />
   );

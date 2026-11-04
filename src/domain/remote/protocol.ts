@@ -3,6 +3,7 @@ import type { CameraDevice, CameraStatus } from '../camera/camera-device';
 import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
+import type { TextStyle } from '../show/texts';
 import type { PreviewFrame } from './preview';
 
 /**
@@ -51,9 +52,13 @@ export interface ShowSnapshot {
     /** Factor the adaptive resolution applies to the pixel budget (1 = none). */
     resolutionScale: number;
   };
-  overlay: {
-    hasLogo: boolean;
-    opacity: number;
+  /** Ids of the stored images (an entry whose image is missing here cannot be shown). */
+  images: string[];
+  /** The text on screen right now, as drawn (capitals included), or an image's label. */
+  text: {
+    showing: string | null;
+    kind: 'text' | 'image' | null;
+    style: TextStyle | null;
   };
   /** What is on screen right now (differs from `show.sceneId` while idle, panicking or fading). */
   shownSceneId: SceneId;
@@ -64,8 +69,8 @@ export interface ShowSnapshot {
   };
 }
 
-/** Longest logo data URL accepted (the control window scales logos down well below this). */
-export const MAX_LOGO_DATA_URL_LENGTH = 3_000_000;
+/** Longest image data URL accepted (the control window scales images down well below this). */
+export const MAX_IMAGE_DATA_URL_LENGTH = 3_000_000;
 
 export type ControlMessage =
   /** The control window opened: publish a snapshot now. */
@@ -75,8 +80,10 @@ export type ControlMessage =
   /** A tap on the beat (tap tempo); timed when it arrives in the output window. */
   | { type: 'tap' }
   | { type: 'clear-tap' }
-  /** An image data URL for the overlay, or '' to remove it. */
-  | { type: 'set-logo'; dataUrl: string }
+  /** Stores an image for a list entry, before the entry referring to it is added. */
+  | { type: 'set-image'; id: string; dataUrl: string }
+  /** Show the text at this index of `show.texts` now. */
+  | { type: 'show-text'; index: number }
   /** The preview pane is visible: keep sending frames for a few more seconds. Repeat to keep it. */
   | { type: 'watch-preview' };
 

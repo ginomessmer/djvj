@@ -9,7 +9,9 @@ import {
   SCENES,
   SELECTABLE_SCENE_IDS,
   SELECTABLE_SCENES,
+  sceneTextStyle,
 } from './scenes';
+import { TEXT_STYLES } from './texts';
 
 describe('scene catalog', () => {
   it('describes every scene id exactly once, with unique names', () => {
@@ -60,5 +62,12 @@ describe('scene catalog', () => {
     }
     expect(visited.size).toBe(SELECTABLE_SCENE_IDS.length);
     expect(id).toBe(SELECTABLE_SCENE_IDS[0]);
+  });
+});
+
+describe('text styles', () => {
+  it('gives every text style to at least one scene, so auto shows them all', () => {
+    const used = new Set(SCENES.map((scene) => sceneTextStyle(scene.id)));
+    expect([...used].sort()).toEqual([...TEXT_STYLES].sort());
   });
 });

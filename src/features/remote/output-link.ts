@@ -36,8 +36,13 @@ export function linkOutputToBus(
       case 'watch-preview':
         runtime.watchPreview();
         break;
-      case 'set-logo':
-        if (typeof message.dataUrl === 'string') runtime.setLogo(message.dataUrl);
+      case 'show-text':
+        if (typeof message.index === 'number') runtime.showText(message.index);
+        break;
+      case 'set-image':
+        if (typeof message.id === 'string' && typeof message.dataUrl === 'string') {
+          runtime.setImage(message.id, message.dataUrl);
+        }
         break;
     }
   });

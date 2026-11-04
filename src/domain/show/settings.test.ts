@@ -37,12 +37,19 @@ describe('showPatchSchema', () => {
     expect(showPatchSchema.safeParse({}).success).toBe(true);
   });
 
-  it('validates the overlay settings', () => {
-    expect(
-      showPatchSchema.safeParse({ overlayMode: 'reveal', overlayName: 'DJ Gino' }).success,
-    ).toBe(true);
-    expect(showPatchSchema.safeParse({ overlayMode: 'blink' }).success).toBe(false);
-    expect(showPatchSchema.safeParse({ overlayName: 'x'.repeat(41) }).success).toBe(false);
+  it('validates the texts and their images', () => {
+    const image = { text: 'logo.png', cue: 'drop', imageId: 'a1b2-c3' };
+    expect(showPatchSchema.safeParse({ texts: [{ text: 'HI', cue: 'drop' }, image] }).success).toBe(
+      true,
+    );
+    expect(showPatchSchema.safeParse({ texts: [{ text: 'HI', cue: 'blink' }] }).success).toBe(
+      false,
+    );
+    expect(showPatchSchema.safeParse({ texts: [{ ...image, imageId: '../x' }] }).success).toBe(
+      false,
+    );
+    const nine = Array.from({ length: 9 }, () => ({ text: 'x', cue: 'drop' }));
+    expect(showPatchSchema.safeParse({ texts: nine }).success).toBe(false);
   });
 
   it('rejects out-of-range values and unknown scenes', () => {

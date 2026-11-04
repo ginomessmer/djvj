@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OVERLAY_MODES } from './overlay-scheduler';
+import { TEXT_STYLE_CHOICES, textMessagesSchema } from './texts';
 
 /** Settings that survive a reload. Single source of truth for their type, range and default. */
 export const settingsFields = {
@@ -18,9 +18,15 @@ export const settingsFields = {
   autoPalette: z.boolean(),
   /** Lower the resolution automatically when frames get slow. */
   adaptiveResolution: z.boolean(),
-  overlayMode: z.enum(OVERLAY_MODES),
-  /** DJ name for the overlay (the logo is stored separately: it is too big for every update). */
-  overlayName: z.string().max(40),
+  /**
+   * Texts and images that appear with the music: each belongs to a moment (drop, build-up, ...).
+   * Images are stored apart and only referenced here by id.
+   */
+  texts: textMessagesSchema,
+  /** Texts on or off as a whole (the list is kept). */
+  textsOn: z.boolean(),
+  /** 'auto': each scene brings its own text style. */
+  textStyle: z.enum(TEXT_STYLE_CHOICES),
   /** Use a camera for the camera scenes. Off until the DJ turns it on (it asks for permission). */
   cameraEnabled: z.boolean(),
   /** '' = an iPhone via Continuity Camera if there is one, else the system default. */
@@ -44,8 +50,9 @@ export const DEFAULT_SETTINGS: Settings = {
   beatOffsetMs: 0,
   autoPalette: true,
   adaptiveResolution: true,
-  overlayMode: 'off',
-  overlayName: '',
+  texts: [],
+  textsOn: true,
+  textStyle: 'auto',
   cameraEnabled: false,
   cameraDeviceId: '',
   cameraMirror: false,

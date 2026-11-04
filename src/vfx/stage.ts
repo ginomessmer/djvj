@@ -4,8 +4,14 @@ import { flipRows, PREVIEW_WIDTH, type PreviewFrame, previewHeight } from '@/dom
 import { meanRelativeLuminance } from '@/domain/safety/luminance';
 import type { SceneMix } from '@/domain/show/scene-mixer';
 import { SAFE_SCENE_ID, type SceneId } from '@/domain/show/scenes';
-import type { FrameParams, OverlayParams } from './frame-params';
-import { OVERLAY_ASPECT, OverlayTexture } from './overlay-texture';
+import { TEXT_STYLES } from '@/domain/show/texts';
+import type { FrameParams, TextParams } from './frame-params';
+import {
+  HEADLINE_ASPECT,
+  HEADLINE_TEXTURE_WIDTH,
+  HeadlineTexture,
+  MAX_GLYPHS,
+} from './headline-texture';
 import { SCENE_SHADERS } from './scenes';
 import { COMPOSITE_SHADER, FRAGMENT_FOOTER, FRAGMENT_HEADER, VERTEX_SHADER } from './shader-chunks';
 
@@ -27,11 +33,8 @@ const CAMERA_FADE_SEC = 0.4;
  * for longer than this while the video plays, the frame is uploaded anyway.
  */
 const CAMERA_STALL_SEC = 0.25;
-/** Where the overlay sits, in fractions of the screen width. */
-const OVERLAY_LAYOUT = {
-  corner: { width: 0.2, marginX: 0.03, marginY: 0.04 },
-  centre: { width: 0.55 },
-};
+/** The headline box: this share of the screen width, centred. */
+const HEADLINE_WIDTH = 0.86;
 
 export interface LuminanceSample {
   tSec: number;
@@ -50,7 +53,7 @@ function sceneTarget(): THREE.WebGLRenderTarget {
 
 /**
  * Draws the show: each frame one or two fullscreen fragment-shader scenes, blended by a composite
- * pass that also adds the overlay. Shader compile errors fall back to the safe scene instead of
+ * pass that also adds the headline text. Shader compile errors fall back to the safe scene instead of
  * leaving the screen dead. It also measures how bright the output is, for the flash guard.
  */
 export class Stage {
@@ -67,7 +70,7 @@ export class Stage {
     generateMipmaps: false,
   });
   private readonly probePixels = new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4);
-  private readonly overlay = new OverlayTexture();
+  private readonly headline = new HeadlineTexture();
   private readonly drawingBufferSize = new THREE.Vector2();
   private readonly paletteTarget = Array.from({ length: PALETTE_SIZE }, () => new THREE.Color());
   private activeSceneId: SceneId = SAFE_SCENE_ID;
@@ -110,10 +113,25 @@ export class Stage {
     u_from: { value: this.targets.from.texture },
     u_to: { value: this.targets.to.texture },
     u_mix: { value: 0 },
-    u_overlay: { value: this.overlay.texture as THREE.Texture },
-    u_overlayOpacity: { value: 0 },
-    u_overlayRect: { value: new THREE.Vector4(0, 0, 1, 1) },
     u_intensity: { value: 1 },
+    u_palette: this.sceneUniforms.u_palette,
+    u_pulse: { value: 0 },
+    u_bass: { value: 0 },
+    u_beat: { value: 0 },
+    u_text: { value: this.headline.texture as THREE.Texture },
+    u_textOpacity: { value: 0 },
+    u_textStyle: { value: 0 },
+    u_textRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+    u_textLod: { value: 0 },
+    u_textScale: { value: 1 },
+    u_textShake: { value: 0 },
+    u_textSplit: { value: 0 },
+    u_textDissolve: { value: 0 },
+    u_textGlow: { value: 0 },
+    u_glyphCount: { value: 1 },
+    u_glyphEdge: { value: new Array<number>(MAX_GLYPHS + 1).fill(1) },
+    u_glyphLift: { value: new Array<number>(MAX_GLYPHS).fill(0) },
+    u_glyphAlpha: { value: new Array<number>(MAX_GLYPHS).fill(1) },
   };
 
   constructor(private readonly container: HTMLElement) {
@@ -185,7 +203,7 @@ export class Stage {
     return [width, height];
   }
 
-  render(mix: SceneMix<SceneId>, frame: FrameParams, overlay: OverlayParams): void {
+  render(mix: SceneMix<SceneId>, frame: FrameParams, text: TextParams): void {
     this.applyFrame(frame);
     this.drawScene(mix.mix >= 1 ? mix.toId : mix.fromId, this.targets.from);
     const blending = mix.mix > 0 && mix.mix < 1 && mix.toId !== mix.fromId;
@@ -195,9 +213,12 @@ export class Stage {
     uniforms.u_time.value = frame.time;
     uniforms.u_mix.value = blending ? mix.mix : 0;
     uniforms.u_intensity.value = frame.intensity;
-    this.applyOverlay(overlay);
-
+    uniforms.u_pulse.value = frame.rhythm.pulse;
+    uniforms.u_bass.value = Math.max(frame.features.bands[0], frame.features.bands[1]);
+    uniforms.u_beat.value = frame.rhythm.beatPhase;
     this.renderer.getDrawingBufferSize(this.drawingBufferSize);
+    this.applyText(text);
+
     uniforms.u_res.value.copy(this.drawingBufferSize);
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.compositeScene, this.camera);
@@ -229,7 +250,7 @@ export class Stage {
     this.targets.to.dispose();
     this.probe.dispose();
     this.previewTarget?.dispose();
-    this.overlay.dispose();
+    this.headline.dispose();
     this.cameraTexture?.dispose();
     this.noCamera.dispose();
     this.renderer.dispose();
@@ -270,7 +291,7 @@ export class Stage {
       });
   }
 
-  /** Renders the composite (overlay and master level included) small, and reads it back async. */
+  /** Renders the composite (texts and master level included) small, and reads it back async. */
   private capturePreview(): void {
     if (this.previewReading) return;
     const width = PREVIEW_WIDTH;
@@ -377,22 +398,41 @@ export class Stage {
     uniforms.u_camera.value = this.cameraTexture ?? this.noCamera;
   }
 
-  private applyOverlay({ name, logoUrl, opacity, layout }: OverlayParams): void {
+  private applyText({ content, imageUrl, style, look }: TextParams): void {
     const uniforms = this.compositeUniforms;
-    uniforms.u_overlayOpacity.value = opacity;
-    if (opacity <= 0) return;
-    this.overlay.update(name, logoUrl);
+    uniforms.u_textOpacity.value = content ? look.opacity : 0;
+    if (!content || look.opacity <= 0) return;
 
-    const screenAspect = this.drawingBufferSize.x / Math.max(1, this.drawingBufferSize.y);
-    if (layout === 'corner') {
-      const { width, marginX, marginY } = OVERLAY_LAYOUT.corner;
-      const height = (width * screenAspect) / OVERLAY_ASPECT;
-      uniforms.u_overlayRect.value.set(1 - marginX - width, marginY, width, height);
-    } else {
-      const { width } = OVERLAY_LAYOUT.centre;
-      const height = (width * screenAspect) / OVERLAY_ASPECT;
-      uniforms.u_overlayRect.value.set((1 - width) / 2, (1 - height) / 2, width, height);
+    const edges = this.headline.update(content, style, imageUrl);
+    const count = Math.max(1, Math.min(MAX_GLYPHS, edges.length - 1, look.lift.length));
+    uniforms.u_glyphCount.value = count;
+    for (let i = 0; i <= MAX_GLYPHS; i++) {
+      uniforms.u_glyphEdge.value[i] = i === count ? 1 : (edges[i] ?? 1);
     }
+    for (let i = 0; i < MAX_GLYPHS; i++) {
+      uniforms.u_glyphLift.value[i] = look.lift[i] ?? 0;
+      uniforms.u_glyphAlpha.value[i] = look.alpha[i] ?? 1;
+    }
+
+    uniforms.u_textStyle.value = TEXT_STYLES.indexOf(style);
+    uniforms.u_textScale.value = look.scale;
+    uniforms.u_textShake.value = look.shake;
+    uniforms.u_textSplit.value = look.split;
+    uniforms.u_textDissolve.value = look.dissolve;
+    uniforms.u_textGlow.value = look.glow;
+
+    const screenWidth = Math.max(1, this.drawingBufferSize.x);
+    const screenAspect = screenWidth / Math.max(1, this.drawingBufferSize.y);
+    const height = (HEADLINE_WIDTH * screenAspect) / HEADLINE_ASPECT;
+    uniforms.u_textRect.value.set(
+      (1 - HEADLINE_WIDTH) / 2,
+      (1 - height) / 2,
+      HEADLINE_WIDTH,
+      height,
+    );
+    // Texels per pixel decide the sharpest mip level that does not shimmer.
+    const pixels = HEADLINE_WIDTH * screenWidth * look.scale;
+    uniforms.u_textLod.value = Math.max(0, Math.log2(HEADLINE_TEXTURE_WIDTH / pixels));
   }
 
   private materialFor(sceneId: SceneId): THREE.ShaderMaterial {

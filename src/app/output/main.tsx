@@ -8,7 +8,7 @@ import { linkOutputToBus } from '@/features/remote/output-link';
 import { createShowStore } from '@/features/show/show-store';
 import { AudioInput } from '@/services/audio-input';
 import { CameraInput } from '@/services/camera-input';
-import { logoStorage } from '@/services/logo-storage';
+import { forgetLegacyLogo, imageStorage } from '@/services/image-storage';
 import { createMessageBus } from '@/services/message-bus';
 import { StartOverlay } from '@/ui/output/StartOverlay';
 import { Stage } from '@/vfx/stage';
@@ -28,7 +28,8 @@ function main(): void {
     const audio = new AudioPipeline(new AudioInput(), store.getState().silenceDb);
     const camera = new CameraPipeline(new CameraInput());
     const director = new Director(store.getState().sceneId);
-    const runtime = new OutputRuntime({ stage, store, audio, camera, director, logoStorage });
+    forgetLegacyLogo();
+    const runtime = new OutputRuntime({ stage, store, audio, camera, director, imageStorage });
 
     linkOutputToBus(runtime, store, createMessageBus<OutputMessage, ControlMessage>(CHANNEL_NAME));
     runtime.start();

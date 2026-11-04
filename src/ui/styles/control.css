@@ -1059,6 +1059,174 @@ input[type="range"]::-moz-range-thumb {
   outline-offset: 1px;
 }
 
+/* ---------- texts ---------- */
+
+.texts__now {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  min-width: 0;
+}
+
+.texts__dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--edge);
+}
+
+.texts__dot--on {
+  background: var(--accent-fg);
+  box-shadow: 0 0 6px var(--accent-fg);
+}
+
+.texts__live {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.texts__style,
+.texts__idle {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.texts__style {
+  margin-left: auto;
+}
+
+.texts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+
+.texts__row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "fire text text"
+    "fire cue remove";
+  gap: 0.25rem 0.375rem;
+  align-items: center;
+}
+
+.texts__row > * {
+  min-width: 0;
+}
+
+/* A tall pad, easy to hit while playing. */
+.texts__fire {
+  grid-area: fire;
+  align-self: stretch;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+.texts__fire:not(:disabled) {
+  color: var(--accent-fg);
+}
+
+.texts__fire:active:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.texts__input {
+  grid-area: text;
+  padding: 0 0.5rem;
+}
+
+.texts__cue {
+  grid-area: cue;
+  justify-self: start;
+  min-height: calc(var(--control) * 0.8);
+  color: var(--text-dim);
+}
+
+.texts__image {
+  grid-area: text;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--control);
+  padding: 0 0.5rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  /* A checkerboard, so a transparent image shows its shape. */
+  background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--bg) 0 50%) 0 0 / 10px 10px;
+}
+
+.texts__image img,
+.texts__thumb {
+  flex: none;
+  max-width: 3.5rem;
+  max-height: calc(var(--control) - 8px);
+  object-fit: contain;
+}
+
+.texts__thumb {
+  width: 1.5rem;
+  height: 1rem;
+  border-radius: 2px;
+  background: var(--edge);
+}
+
+.texts__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.texts__image--missing {
+  border-color: var(--warn);
+  background: var(--surface-2);
+}
+
+.texts__image--missing .texts__label {
+  color: var(--warn);
+}
+
+.file-button.is-disabled {
+  opacity: 0.45;
+}
+
+.texts__remove {
+  grid-area: remove;
+  min-height: calc(var(--control) * 0.8);
+  padding: 0 0.5rem;
+  color: var(--text-dim);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.texts__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.texts__chip {
+  min-height: calc(var(--control) * 0.85);
+  padding: 0 0.6rem;
+  border-style: dashed;
+  background: transparent;
+}
+
+.texts__chip small {
+  color: var(--text-dim);
+}
+
 /* ---------- status bar ---------- */
 
 .statusbar {

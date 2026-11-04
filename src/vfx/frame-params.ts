@@ -1,6 +1,8 @@
 import type { AudioFeatures } from '@/domain/audio/audio-features';
-import type { OverlayLayout } from '@/domain/show/overlay-scheduler';
 import type { Palette } from '@/domain/show/palettes';
+import type { TextContent } from '@/domain/show/text-director';
+import type { TextLook } from '@/domain/show/text-motion';
+import type { TextStyle } from '@/domain/show/texts';
 
 /** Everything the stage needs to draw one frame. */
 export interface FrameParams {
@@ -28,11 +30,12 @@ export interface FrameParams {
   };
 }
 
-/** The DJ name / logo mark laid over the scenes. */
-export interface OverlayParams {
-  name: string;
-  /** Image data URL, or '' for none. */
-  logoUrl: string;
-  opacity: number;
-  layout: OverlayLayout;
+/** The headline text or image in the middle of the screen, styled with the scene behind it. */
+export interface TextParams {
+  /** Null: nothing. */
+  content: TextContent | null;
+  /** The image's data URL when the content is an image, else ''. */
+  imageUrl: string;
+  style: TextStyle;
+  look: TextLook;
 }
