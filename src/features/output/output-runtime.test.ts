@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { sceneTextStyle } from '@/domain/show/scenes';
 import { createTestRuntime, runFrames } from '../test-utils';
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** Arguments of the most recent `stage.render` call: the scene mix, frame and overlay. */
+/** Arguments of the most recent `stage.render` call: the scene mix, frame, overlay and text. */
 function lastDraw(stage: { render: ReturnType<typeof vi.fn> }) {
-  const [mix, frame, overlay] = stage.render.mock.calls.at(-1) ?? [];
-  return { sceneId: mix?.toId, mix, frame, overlay };
+  const [mix, frame, overlay, text] = stage.render.mock.calls.at(-1) ?? [];
+  return { sceneId: mix?.toId, mix, frame, overlay, text };
 }
 
 describe('OutputRuntime', () => {
@@ -142,8 +143,55 @@ describe('OutputRuntime', () => {
 
     store.getState().apply({ overlayName: 'DJ Test' });
     runFrames(runtime, 3, 4);
-    expect(lastDraw(stage).overlay).toMatchObject({ name: 'DJ Test', layout: 'corner' });
+    expect(lastDraw(stage).overlay).toMatchObject({ name: 'DJ Test' });
     expect(lastDraw(stage).overlay.opacity).toBeGreaterThan(0.5);
+  });
+
+  it('slams a drop text in on the demo drop, in the style of the scene it cuts to', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({
+      demo: true,
+      texts: [
+        { text: 'make some noise', cue: 'drop' },
+        { text: 'ready?', cue: 'build' },
+      ],
+    });
+    let t = runFrames(runtime, 57); // into the demo's build-up (from 55 s)
+    expect(runtime.getSnapshot().text.showing?.toUpperCase()).toBe('READY?');
+    t = runFrames(runtime, 60.5 - t, t); // the demo drops at 60 s
+
+    const { text, sceneId } = lastDraw(stage);
+    expect(text.content).toEqual({ kind: 'text', text: 'make some noise' });
+    expect(text.style).toBe(sceneTextStyle(sceneId));
+    expect(text.look.opacity).toBe(1);
+    expect(text.look.lift).toHaveLength('MAKE SOME NOISE'.length);
+    expect(runtime.getSnapshot().text).toMatchObject({ style: text.style });
+  });
+
+  it('shows a text fired by hand, and hides texts while they are switched off', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({ texts: [{ text: 'BACK IN 5', cue: 'groove' }] });
+    runtime.showText(0);
+    runtime.showText(-1); // ignored
+    runFrames(runtime, 2);
+    expect(lastDraw(stage).text.content).toEqual({ kind: 'text', text: 'BACK IN 5' });
+    expect(runtime.getSnapshot().text.showing).toBe('BACK IN 5');
+
+    store.getState().apply({ textsOn: false });
+    runFrames(runtime, 2, 3);
+    expect(lastDraw(stage).text.content).toBeNull();
+    expect(runtime.getSnapshot().text.showing).toBeNull();
+  });
+
+  it('shows the name as a big mark in reveal mode, and the corner steps aside for texts', () => {
+    const { runtime, store, stage } = createTestRuntime();
+    store.getState().apply({ overlayName: 'DJ Test', overlayMode: 'corner' });
+    store.getState().apply({ texts: [{ text: 'HANDS UP', cue: 'drop' }] });
+    runFrames(runtime, 3);
+    expect(lastDraw(stage).overlay.opacity).toBeGreaterThan(0.5);
+    runtime.showText(0);
+    runFrames(runtime, 2, 4);
+    expect(lastDraw(stage).overlay.opacity).toBe(0);
   });
 
   it('stores a valid logo, keeps it out of the snapshot and ignores anything else', () => {

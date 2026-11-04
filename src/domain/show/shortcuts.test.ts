@@ -33,7 +33,7 @@ describe('shortcutPatch', () => {
 
   it('ignores case and unknown keys', () => {
     expect(shortcutPatch('A', show)).toEqual({ auto: !show.auto });
-    expect(shortcutPatch('x', show)).toBeNull();
+    expect(shortcutPatch('z', show)).toBeNull();
     expect(shortcutPatch('Enter', show)).toBeNull();
   });
 

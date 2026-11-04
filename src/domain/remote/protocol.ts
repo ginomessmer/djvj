@@ -3,6 +3,7 @@ import type { CameraDevice, CameraStatus } from '../camera/camera-device';
 import type { Section } from '../rhythm/section-tracker';
 import type { SceneId } from '../show/scenes';
 import type { ShowPatch, ShowState } from '../show/show-state';
+import type { TextStyle } from '../show/texts';
 import type { PreviewFrame } from './preview';
 
 /**
@@ -53,7 +54,13 @@ export interface ShowSnapshot {
   };
   overlay: {
     hasLogo: boolean;
+    /** Opacity of the corner mark. */
     opacity: number;
+  };
+  /** The headline text on screen right now, as drawn (capitals included). */
+  text: {
+    showing: string | null;
+    style: TextStyle | null;
   };
   /** What is on screen right now (differs from `show.sceneId` while idle, panicking or fading). */
   shownSceneId: SceneId;
@@ -77,6 +84,8 @@ export type ControlMessage =
   | { type: 'clear-tap' }
   /** An image data URL for the overlay, or '' to remove it. */
   | { type: 'set-logo'; dataUrl: string }
+  /** Show the text at this index of `show.texts` now. */
+  | { type: 'show-text'; index: number }
   /** The preview pane is visible: keep sending frames for a few more seconds. Repeat to keep it. */
   | { type: 'watch-preview' };
 

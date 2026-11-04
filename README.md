@@ -4,7 +4,7 @@ Automated, audio-reactive generative visuals for a solo DJ set: one laptop, one 
 
 Runs in the browser (Chrome): WebGL shaders driven by live audio analysis. Everything is generated, so there is no content to license.
 
-> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes plus 4 live-camera scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
+> **Status: phase 3.** Audio in → beat tracking and song structure → 10 beat-synced scenes plus 4 live-camera scenes, crossfaded by a director that follows builds, drops and breakdowns, with automatic palettes, texts that move with the music and take on each scene's look, an optional name/logo, a flash guard and adaptive resolution. Feedback trails, particles and MIDI come next, see [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
@@ -78,9 +78,26 @@ djvj listens for the kick and follows the music on its own:
 
 The kick is detected in the 40–100 Hz band. A laptop microphone hears less bass than a line input, so if the Rhythm card never locks with the mic, use a USB interface or BlackHole.
 
+## Texts
+
+<img src="docs/texts.jpg" alt="The six text styles: neon over the tunnel, chrome over the grid, glass over the orb, soft over the aurora, glitch, and invert over the kaleidoscope" width="900">
+
+Up to eight short texts (*MAKE SOME NOISE*, *@yourhandle*, *ARE YOU READY?*) in the control window's *Texts* panel. Each one belongs to a moment of the track, and the moment decides how it moves:
+
+| Moment | When | Motion |
+| --- | --- | --- |
+| **Drop** | the instant the bass comes back | slams in big with colour fringes, then pumps on the beat for 16 beats |
+| **Build** | the build-up | typed out letter by letter on the beat, then grows and shakes harder as the riser climbs; the drop text takes over on the drop |
+| **Break** | a bar into a breakdown | drifts in slowly, letters swaying, until the breakdown ends |
+| **Groove** | now and then in a groove (every ~90 s) | letters rise in left to right, then a wave runs across them on every beat |
+
+Several texts for the same moment take turns. **▶** next to a text shows it right away (also without music, e.g. *BACK IN 5*). **`X`** switches all texts on or off.
+
+**Look.** Every scene has a text style that fits it, and *Auto look* follows the scene: **neon** tubes over the tunnel, lasers and rings, **chrome** over the grid and starfield, **glass** that refracts the scene over the orb, lava and fluid, **soft** glow over the aurora, **glitch** over the glitch and glyph scenes, and **invert** over the kaleidoscope and halftone. A text keeps the look it started with even when the scene changes underneath. Pick a style to use it everywhere. Colours come from the playing palette. A soft shadow behind the letters keeps them readable over busy scenes, and nothing flashes: the beat changes size, lift and glow, never the brightness of the whole text.
+
 ## Name and logo
 
-Optional, in the control window's *Name and logo* card: a DJ name and/or a logo (a transparent PNG works best; it is scaled down and stored in this browser). Show it small in the **corner**, or **big after each drop** (16 beats, and now and then in between). Off by default.
+Optional, in the control window's *Name and logo* card: a DJ name and/or a logo (a transparent PNG works best; it is scaled down and stored in this browser). Show it small in the **corner** (it steps aside while a text is on screen), or **big among the texts**: first in line after each drop and now and then in a groove, in the same looks as the texts. Off by default.
 
 ## Safety and performance
 
@@ -121,6 +138,7 @@ Press **`?`** in the control view for the list. Single keys work in the output w
 | `A`       | Auto-rotate scenes on/off. Picking a scene manually locks it.              |
 | `N` / `C` | Next scene / next palette                                                  |
 | `T`       | Tap tempo (four taps on the kick)                                          |
+| `X`       | Texts on/off                                                               |
 | `B`       | Blackout (fast fade to black)                                              |
 | `P`       | **Panic**: instantly switch to the safe ambient scene, which ignores audio |
 | `M`       | Simulated demo signal on/off                                               |
@@ -130,12 +148,12 @@ Press **`?`** in the control view for the list. Single keys work in the output w
 
 - With **no signal** and auto on, the output shows a calm idle scene instead of going dark. Scenes only change while there is music.
 - Scene changes crossfade on the beat; only the drop and panic are hard cuts. A shader that fails to compile falls back to the safe scene.
-- Shortcuts are ignored while typing in a text field (the DJ name), so a name with a P does not trigger panic.
+- Shortcuts are ignored while typing in a text field (the DJ name, the texts), so a name with a P does not trigger panic.
 - If the audio device disappears (USB unplugged), it keeps rendering and retries every 2 s.
 - The output window keeps working with **no control window** open. Control only sends messages.
 - Keep the output window **visible** on the second display: browsers throttle hidden windows.
 - Resolution is capped at a **1080p pixel budget** (adjustable in control) so the GPU stays free for rekordbox's audio.
-- Settings (device, camera, palette, brightness, resolution, auto, beat offset, overlay) and the logo are remembered per browser.
+- Settings (device, camera, palette, brightness, resolution, auto, beat offset, overlay, texts) and the logo are remembered per browser.
 
 ## Code structure
 
@@ -143,7 +161,7 @@ Five layers plus the entry points. A layer may only import the ones below it; `s
 
 | Layer         | Responsibility                                                                                               | May use                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| `domain/`     | Pure logic and types: audio analysis, rhythm and song structure, scene director, settings, palettes, shortcuts, message protocol, colour and theme preferences | `zod`                            |
+| `domain/`     | Pure logic and types: audio analysis, rhythm and song structure, scene and text directors, settings, palettes, shortcuts, message protocol, colour and theme preferences | `zod`                            |
 | `services/`   | Thin adapters to browser APIs: Web Audio input, camera, `BroadcastChannel`, keyboard                         | domain                           |
 | `vfx/`        | The three.js stage and the GLSL scenes                                                                       | domain, `three`                  |
 | `features/`   | Use cases that wire the above together: show store, audio pipeline, output runtime, link to the control window | domain, services, vfx, `zustand` |
@@ -154,7 +172,7 @@ Five layers plus the entry points. A layer may only import the ones below it; `s
 src/
   domain/    audio/ (features, DSP)   camera/   rhythm/ (tempo, beat clock, sections)   show/ (scenes, director, settings)   remote/
   services/  audio-input   camera-input   message-bus   keyboard
-  vfx/       stage   shader-chunks   scenes/*.glsl
+  vfx/       stage   shader-chunks (composite: crossfade + text styles)   headline-texture   scenes/*.glsl
   features/  audio/   camera/   show/ (zustand store)   output/ (runtime)   remote/ (output-link)
   ui/        components/   control/   output/   styles/ (themes.css = colour tokens)
   app/       main.ts (picks the view)   output/   control/
@@ -164,7 +182,7 @@ Data flow: audio input → `FeatureExtractor` → `RhythmTracker` + `SectionTrac
 
 **Dependencies** (each replaces code that would otherwise be hand-written): `three` renderer and context handling, `preact` UI, `zustand` state with persistence, `zod` settings types and message validation, `biome` lint and format.
 
-**Adding a scene:** add its id to `SCENE_IDS` and an entry in `SCENES` (`domain/show/scenes.ts`), and drop a `.glsl` file in `vfx/scenes/` that defines `vec3 render(vec2 uv, vec2 p)`; the compiler refuses a scene without a shader. Available uniforms are listed in `vfx/shader-chunks.ts`.
+**Adding a scene:** add its id to `SCENE_IDS` and an entry in `SCENES` (`domain/show/scenes.ts`, plus the text style that suits it in `SCENE_TEXT_STYLES`), and drop a `.glsl` file in `vfx/scenes/` that defines `vec3 render(vec2 uv, vec2 p)`; the compiler refuses a scene without a shader. Available uniforms are listed in `vfx/shader-chunks.ts`.
 
 ## Develop
 

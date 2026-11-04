@@ -16,7 +16,10 @@ import type { Director, DirectorFrame } from '@/domain/show/director';
 import { type OverlayFrame, OverlayScheduler } from '@/domain/show/overlay-scheduler';
 import { PaletteRotation } from '@/domain/show/palette-rotation';
 import { findPalette, nextPalette } from '@/domain/show/palettes';
-import type { SceneId } from '@/domain/show/scenes';
+import { type SceneId, sceneTextStyle } from '@/domain/show/scenes';
+import { TextDirector, type TextFrame } from '@/domain/show/text-director';
+import { HIDDEN_LOOK, type TextLook, textLook } from '@/domain/show/text-motion';
+import { displayText, glyphCount } from '@/domain/show/texts';
 import type { LogoStorage } from '@/services/logo-storage';
 import type { Stage } from '@/vfx/stage';
 import type { AudioPipeline } from '../audio/audio-pipeline';
@@ -73,13 +76,16 @@ export class OutputRuntime {
   private readonly sectionTracker = new SectionTracker();
   private readonly paletteRotation = new PaletteRotation();
   private readonly overlayScheduler = new OverlayScheduler();
+  private readonly textDirector = new TextDirector();
   private readonly flashGuard = new FlashGuard();
   private readonly governor = new ResolutionGovernor();
   private features: AudioFeatures = silentFeatures();
   private rhythm: RhythmState = NO_RHYTHM;
   private section: Section = 'quiet';
   private shownSceneId: SceneId;
-  private overlay: OverlayFrame = { opacity: 0, layout: 'corner' };
+  private overlay: OverlayFrame = { opacity: 0 };
+  private text: TextFrame | null = null;
+  private textLook: TextLook = HIDDEN_LOOK;
   private logoUrl: string;
   private calm = 0;
   private resolution: [number, number] = [0, 0];
@@ -173,6 +179,12 @@ export class OutputRuntime {
     this.publish();
   }
 
+  /** Shows the text at this index of the list now, whatever the music does. */
+  showText(index: number): void {
+    if (!Number.isInteger(index) || index < 0) return;
+    this.textDirector.request(index);
+  }
+
   /**
    * A control window shows the preview pane: produce frames for the next few seconds. It has to
    * keep asking, so a closed or hidden control window stops costing the output anything.
@@ -229,6 +241,7 @@ export class OutputRuntime {
       },
       safety: { flashGuard: this.calm, resolutionScale: this.governor.scale },
       overlay: { hasLogo: this.logoUrl !== '', opacity: this.overlay.opacity },
+      text: this.textSnapshot(),
       shownSceneId: this.shownSceneId,
       performance: {
         fps: this.stats.fps,
@@ -284,12 +297,31 @@ export class OutputRuntime {
       (blackoutTarget - this.blackoutLevel) * Math.min(1, dtSec * BLACKOUT_EASING_PER_SEC);
     const pulse = live ? this.pulse(view.kick) * (1 - FLASH_GUARD.pulseDamping * this.calm) : 0;
 
-    this.overlay = this.overlayScheduler.update(dtSec, {
-      mode: show.overlayMode,
-      hasContent: show.overlayName.trim() !== '' || this.logoUrl !== '',
+    const hasMark = show.overlayName.trim() !== '' || this.logoUrl !== '';
+    const beatSec = this.rhythm.bpm > 0 ? 60 / this.rhythm.bpm : FALLBACK_BEAT_SEC;
+    this.text = this.textDirector.update(dtSec, {
+      enabled: show.textsOn,
       live,
       section: this.section,
-      beatHit: this.rhythm.beatHit,
+      beatSec,
+      messages: show.texts,
+      mark: show.overlayMode === 'reveal' && hasMark,
+      sceneStyle: sceneTextStyle(frame.toId),
+      styleChoice: show.textStyle,
+    });
+    const { content } = this.text;
+    this.textLook = content
+      ? textLook(this.text, glyphCount(content, this.text.style), {
+          pulse,
+          beatPhase: this.rhythm.beatPhase,
+          highs: Math.max(view.bands[3], view.bands[4]),
+        })
+      : HIDDEN_LOOK;
+
+    this.overlay = this.overlayScheduler.update(dtSec, {
+      mode: show.overlayMode,
+      hasContent: hasMark,
+      headline: this.textLook.opacity > 0,
     });
 
     const resolutionScale = this.governor.update(dtSec, show.adaptiveResolution);
@@ -309,12 +341,8 @@ export class OutputRuntime {
           (1 - FLASH_GUARD.dimming * this.calm),
         camera: { video: camera.video, mirror: show.cameraMirror },
       },
-      {
-        name: show.overlayName,
-        logoUrl: this.logoUrl,
-        opacity: this.overlay.opacity,
-        layout: this.overlay.layout,
-      },
+      { name: show.overlayName, logoUrl: this.logoUrl, opacity: this.overlay.opacity },
+      { content, style: this.text.style, look: this.textLook },
     );
 
     this.forwardPreview(tSec);
@@ -323,6 +351,16 @@ export class OutputRuntime {
       this.lastSnapshotSec = tSec;
       this.publish();
     }
+  }
+
+  /** What text is on screen, for the control window. */
+  private textSnapshot(): ShowSnapshot['text'] {
+    const content = this.text?.content;
+    if (!content || this.textLook.opacity <= 0 || !this.text) return { showing: null, style: null };
+    const name = this.deps.store.getState().overlayName.trim();
+    const showing =
+      content.kind === 'text' ? displayText(content.text, this.text.style) : name || 'Logo';
+    return { showing, style: this.text.style };
   }
 
   private forwardPreview(tSec: number): void {

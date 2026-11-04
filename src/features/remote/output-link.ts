@@ -36,6 +36,9 @@ export function linkOutputToBus(
       case 'watch-preview':
         runtime.watchPreview();
         break;
+      case 'show-text':
+        if (typeof message.index === 'number') runtime.showText(message.index);
+        break;
       case 'set-logo':
         if (typeof message.dataUrl === 'string') runtime.setLogo(message.dataUrl);
         break;
